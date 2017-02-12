@@ -2,32 +2,37 @@ package cgeo.geocaching.location;
 
 import cgeo.geocaching.utils.MatcherWrapper;
 
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import java.util.regex.Pattern;
+
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Parse coordinates.
  */
 class GeopointParser {
 
+    private GeopointParser() {
+        // utility class
+    }
+
     private static class ResultWrapper {
         final double result;
         final int matcherPos;
         final int matcherLength;
 
-        public ResultWrapper(final double result, final int matcherPos, final int stringLength) {
+        ResultWrapper(final double result, final int matcherPos, final int stringLength) {
             this.result = result;
             this.matcherPos = matcherPos;
             this.matcherLength = stringLength;
         }
     }
 
-    //                                                            ( 1  )       ( 2  )         ( 3  )       ( 4  )       (        5        )
-    private static final Pattern PATTERN_LAT = Pattern.compile("\\b([NS]|)\\s*(\\d+°?|°)(?:\\s*(\\d+)(?:[.,](\\d+)|'?\\s*(\\d+(?:[.,]\\d+)?)(?:''|\")?)?)?", Pattern.CASE_INSENSITIVE);
-    private static final Pattern PATTERN_LON = Pattern.compile("\\b([WE]|)\\s*(\\d+°?|°)(?:\\s*(\\d+)(?:[.,](\\d+)|'?\\s*(\\d+(?:[.,]\\d+)?)(?:''|\")?)?)?", Pattern.CASE_INSENSITIVE);
+    //                                                             (  1  )    (   2    )       ( 3  )       ( 4  )             (        5        )
+    private static final Pattern PATTERN_LAT = Pattern.compile("\\b([NS]|)\\s*(\\d+°?|°)(?:\\s*(\\d+)(?:[.,](\\d+)|(?:'|′)?\\s*(\\d+(?:[.,]\\d+)?)(?:''|\"|″)?)?)?", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PATTERN_LON = Pattern.compile("\\b([WE]|)\\s*(\\d+°?|°)(?:\\s*(\\d+)(?:[.,](\\d+)|(?:'|′)?\\s*(\\d+(?:[.,]\\d+)?)(?:''|\"|″)?)?)?", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern PATTERN_BAD_BLANK = Pattern.compile("(\\d)[,.] (\\d{2,})");
 
@@ -66,27 +71,41 @@ class GeopointParser {
                 final double lon = Double.parseDouble(StringUtils.strip(parts[1], " \t\u00a0"));
                 return new Geopoint(lat, lon);
             }
-        } catch (final NumberFormatException e) {
+        } catch (final NumberFormatException ignored) {
             // ignore and continue parsing textual formats
         }
 
-        final ResultWrapper latitudeWrapper = parseHelper(text, LatLon.LAT);
+        // try to parse UTM string
+        try {
+            final UTMPoint utmPoint = new UTMPoint(text);
+            return utmPoint.toLatLong();
+        } catch (final Exception ignored) {
+            // ignore and continue parsing textual formats
+        }
+
+        final String withoutSpaceAfterComma = removeAllSpaceAfterComma(text);
+        final ResultWrapper latitudeWrapper = parseHelper(withoutSpaceAfterComma, LatLon.LAT);
         // cut away the latitude part when parsing the longitude
-        final ResultWrapper longitudeWrapper = parseHelper(text.substring(latitudeWrapper.matcherPos + latitudeWrapper.matcherLength), LatLon.LON);
+        final ResultWrapper longitudeWrapper = parseHelper(withoutSpaceAfterComma.substring(latitudeWrapper.matcherPos + latitudeWrapper.matcherLength), LatLon.LON);
 
         if (longitudeWrapper.matcherPos - (latitudeWrapper.matcherPos + latitudeWrapper.matcherLength) >= 10) {
             throw new Geopoint.ParseException("Distance between latitude and longitude text is to large.", LatLon.LON);
         }
 
         final double lat = latitudeWrapper.result;
-        final double lon = longitudeWrapper.result;
         if (!Geopoint.isValidLatitude(lat)) {
             throw new Geopoint.ParseException(text, LatLon.LAT);
         }
+        final double lon = longitudeWrapper.result;
         if (!Geopoint.isValidLongitude(lon)) {
             throw new Geopoint.ParseException(text, LatLon.LON);
         }
         return new Geopoint(lat, lon);
+    }
+
+    @NonNull
+    private static String removeAllSpaceAfterComma(@NonNull final String text) {
+        return new MatcherWrapper(PATTERN_BAD_BLANK, text).replaceAll("$1.$2");
     }
 
     /**
@@ -98,29 +117,27 @@ class GeopointParser {
      * @throws Geopoint.ParseException if the text cannot be parsed
      */
     private static ResultWrapper parseHelper(@NonNull final String text, final LatLon latlon) {
-        final String replaceSpaceAfterComma = new MatcherWrapper(PATTERN_BAD_BLANK, text).replaceAll("$1.$2");
-        final MatcherWrapper matcher = new MatcherWrapper(LatLon.LAT == latlon ? PATTERN_LAT : PATTERN_LON, replaceSpaceAfterComma);
-
         try {
-            return new ResultWrapper(Double.parseDouble(replaceSpaceAfterComma), 0, text.length());
+            return new ResultWrapper(Double.parseDouble(text), 0, text.length());
         } catch (final NumberFormatException ignored) {
             // fall through to advanced parsing
         }
 
+        final MatcherWrapper matcher = new MatcherWrapper(latlon == LatLon.LAT ? PATTERN_LAT : PATTERN_LON, text);
         try {
             if (matcher.find()) {
                 final double sign = matcher.group(1).equalsIgnoreCase("S") || matcher.group(1).equalsIgnoreCase("W") ? -1.0 : 1.0;
-                final double degree = Integer.valueOf(StringUtils.defaultIfEmpty(StringUtils.stripEnd(matcher.group(2), "°"), "0")).doubleValue();
+                final double degree = Double.parseDouble(StringUtils.defaultIfEmpty(StringUtils.stripEnd(matcher.group(2), "°"), "0"));
 
                 double minutes = 0.0;
                 double seconds = 0.0;
 
-                if (null != matcher.group(3)) {
-                    minutes = Integer.valueOf(matcher.group(3)).doubleValue();
+                if (matcher.group(3) != null) {
+                    minutes = Double.parseDouble(matcher.group(3));
 
-                    if (null != matcher.group(4)) {
+                    if (matcher.group(4) != null) {
                         seconds = Double.parseDouble("0." + matcher.group(4)) * 60.0;
-                    } else if (null != matcher.group(5)) {
+                    } else if (matcher.group(5) != null) {
                         seconds = Double.parseDouble(matcher.group(5).replace(",", "."));
                     }
                 }
@@ -136,9 +153,9 @@ class GeopointParser {
             final String[] items = StringUtils.split(StringUtils.trimToEmpty(text));
             final int length = ArrayUtils.getLength(items);
             if (length > 0 && length <= 2) {
-                final int index = (latlon == LatLon.LON ? length - 1 : 0);
+                final int index = latlon == LatLon.LON ? length - 1 : 0;
                 final String textPart = items[index];
-                final int pos = (latlon == LatLon.LON ? text.lastIndexOf(textPart) : text.indexOf(textPart));
+                final int pos = latlon == LatLon.LON ? text.lastIndexOf(textPart) : text.indexOf(textPart);
                 return new ResultWrapper(Double.parseDouble(textPart), pos, textPart.length());
             }
         } catch (final NumberFormatException ignored) {
@@ -159,7 +176,7 @@ class GeopointParser {
      *             if latitude could not be parsed
      */
     public static double parseLatitude(final String text) {
-        return parseHelper(text, LatLon.LAT).result;
+        return parseHelper(removeAllSpaceAfterComma(text), LatLon.LAT).result;
     }
 
     /**
@@ -173,6 +190,6 @@ class GeopointParser {
      *             if longitude could not be parsed
      */
     public static double parseLongitude(final String text) {
-        return parseHelper(text, LatLon.LON).result;
+        return parseHelper(removeAllSpaceAfterComma(text), LatLon.LON).result;
     }
 }

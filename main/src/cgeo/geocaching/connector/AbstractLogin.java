@@ -5,10 +5,12 @@ import cgeo.geocaching.R;
 import cgeo.geocaching.enumerations.StatusCode;
 import cgeo.geocaching.network.Cookies;
 import cgeo.geocaching.network.Network;
-import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.settings.Credentials;
+import cgeo.geocaching.settings.DiskCookieStore;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 public abstract class AbstractLogin {
 
@@ -58,7 +60,7 @@ public abstract class AbstractLogin {
 
     protected void resetLoginStatus() {
         Cookies.clearCookies();
-        Settings.setCookieStore(null);
+        DiskCookieStore.setCookieStore(null);
 
         setActualLoginStatus(false);
     }
@@ -72,13 +74,24 @@ public abstract class AbstractLogin {
 
     @NonNull
     public StatusCode login() {
-        if (!Network.isNetworkConnected()) {
-            return StatusCode.COMMUNICATION_ERROR;
-        }
-        return login(true);
+        return login(null);
     }
 
     @NonNull
-    protected abstract StatusCode login(boolean retry);
+    public StatusCode login(@Nullable final Credentials credentials) {
+        if (!Network.isConnected()) {
+            return StatusCode.COMMUNICATION_ERROR;
+        }
+        if (credentials == null) {
+            return login(true);
+        }
+        return login(true, credentials);
+    }
+
+    @NonNull
+    protected abstract StatusCode login(final boolean retry);
+
+    @NonNull
+    protected abstract StatusCode login(final boolean retry, @NonNull final Credentials credentials);
 
 }

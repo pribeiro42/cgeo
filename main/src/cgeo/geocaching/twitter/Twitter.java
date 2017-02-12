@@ -1,24 +1,24 @@
 package cgeo.geocaching.twitter;
 
-import cgeo.geocaching.DataStore;
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.LogEntry;
-import cgeo.geocaching.Trackable;
+import cgeo.geocaching.CgeoApplication;
+import cgeo.geocaching.R;
 import cgeo.geocaching.enumerations.LoadFlags;
+import cgeo.geocaching.log.LogEntry;
+import cgeo.geocaching.log.LogTemplateProvider;
+import cgeo.geocaching.log.LogTemplateProvider.LogContext;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Trackable;
 import cgeo.geocaching.network.Network;
 import cgeo.geocaching.network.OAuth;
 import cgeo.geocaching.network.OAuthTokens;
 import cgeo.geocaching.network.Parameters;
 import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.storage.DataStore;
 import cgeo.geocaching.utils.Log;
-import cgeo.geocaching.utils.LogTemplateProvider;
-import cgeo.geocaching.utils.LogTemplateProvider.LogContext;
-
-import ch.boye.httpclientandroidlib.HttpResponse;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 public final class Twitter {
 
@@ -28,14 +28,14 @@ public final class Twitter {
         // Utility class
     }
 
-    public static void postTweetCache(final String geocode, final @Nullable LogEntry logEntry) {
+    public static void postTweetCache(final String geocode, @Nullable final LogEntry logEntry) {
         final Geocache cache = DataStore.loadCache(geocode, LoadFlags.LOAD_CACHE_OR_DB);
         if (cache != null) {
             postTweet(getStatusMessage(cache, logEntry));
         }
     }
 
-    public static void postTweetTrackable(final String geocode, final @Nullable LogEntry logEntry) {
+    public static void postTweetTrackable(final String geocode, @Nullable final LogEntry logEntry) {
         final Trackable trackable = DataStore.loadTrackable(geocode);
         if (trackable != null) {
             postTweet(getStatusMessage(trackable, logEntry));
@@ -49,16 +49,16 @@ public final class Twitter {
 
         try {
             final String trimmed = StringUtils.trim(status);
-            final String truncated = StringUtils.length(trimmed) <= MAX_TWEET_SIZE ? trimmed : StringUtils.substring(trimmed, 0, MAX_TWEET_SIZE - 1) + '…';
+            final String truncated = StringUtils.length(trimmed) <= MAX_TWEET_SIZE ? trimmed : StringUtils.substring(trimmed, 0, MAX_TWEET_SIZE - 1) + CgeoApplication.getInstance().getString(R.string.ellipsis);
             final Parameters parameters = new Parameters("status", truncated);
 
             OAuth.signOAuth("api.twitter.com", "/1.1/statuses/update.json", "POST", true, parameters,
                     new OAuthTokens(Settings.getTokenPublic(), Settings.getTokenSecret()), Settings.getTwitterKeyConsumerPublic(), Settings.getTwitterKeyConsumerSecret());
-            final HttpResponse httpResponse = Network.postRequest("https://api.twitter.com/1.1/statuses/update.json", parameters);
-            if (Network.isSuccess(httpResponse)) {
+            try {
+                Network.completeWithSuccess(Network.postRequest("https://api.twitter.com/1.1/statuses/update.json", parameters));
                 Log.i("Tweet posted");
-            } else {
-                Log.e("Tweet could not be posted. Reason: " + httpResponse);
+            } catch (final Exception ignored) {
+                Log.e("Tweet could not be posted");
             }
         } catch (final Exception e) {
             Log.e("Twitter.postTweet", e);
@@ -72,12 +72,12 @@ public final class Twitter {
     }
 
     @NonNull
-    static String getStatusMessage(final @NonNull Geocache cache, final @Nullable LogEntry logEntry) {
-        return appendHashTags(LogTemplateProvider.applyTemplates(Settings.getCacheTwitterMessage(), new LogContext(cache, logEntry)));
+    static String getStatusMessage(@NonNull final Geocache cache, @Nullable final LogEntry logEntry) {
+        return appendHashTags(LogTemplateProvider.applyTemplatesNoIncrement(Settings.getCacheTwitterMessage(), new LogContext(cache, logEntry)));
     }
 
     @NonNull
-    static String getStatusMessage(final @NonNull Trackable trackable, final @Nullable LogEntry logEntry) {
+    static String getStatusMessage(@NonNull final Trackable trackable, @Nullable final LogEntry logEntry) {
         return appendHashTags(LogTemplateProvider.applyTemplates(Settings.getTrackableTwitterMessage(), new LogContext(trackable, logEntry)));
     }
 

@@ -1,17 +1,18 @@
 package cgeo.geocaching.apps.cachelist;
 
 import cgeo.geocaching.CacheDetailActivity;
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
 import cgeo.geocaching.SearchResult;
 import cgeo.geocaching.apps.AbstractApp;
+import cgeo.geocaching.models.Geocache;
 
 import com.mapswithme.maps.api.MWMPoint;
 import com.mapswithme.maps.api.MWMResponse;
 import com.mapswithme.maps.api.MapsWithMeApi;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import org.apache.commons.lang3.StringUtils;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -27,7 +28,7 @@ public class MapsMeCacheListApp extends AbstractApp implements CacheListApp {
     }
 
     @Override
-    public boolean invoke(@NonNull final List<Geocache> caches, @NonNull final Activity activity, final @NonNull SearchResult search) {
+    public boolean invoke(@NonNull final List<Geocache> caches, @NonNull final Activity activity, @NonNull final SearchResult search) {
         final MWMPoint[] points = new MWMPoint[caches.size()];
         for (int i = 0; i < points.length; i++) {
             final Geocache geocache = caches.get(i);
@@ -52,7 +53,12 @@ public class MapsMeCacheListApp extends AbstractApp implements CacheListApp {
         final MWMResponse mwmResponse = MWMResponse.extractFromIntent(context, intent);
         final MWMPoint point = mwmResponse.getPoint();
         if (point != null) {
-            return point.getId();
+            final String id = point.getId();
+            // for unknown reason the ID is now actually a URI in recent maps.me versions
+            if (StringUtils.contains(id, "&id=")) {
+                return StringUtils.substringAfter(id, "&id=");
+            }
+            return id;
         }
         return null;
     }

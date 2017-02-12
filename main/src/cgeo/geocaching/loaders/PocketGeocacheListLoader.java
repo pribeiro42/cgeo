@@ -4,13 +4,13 @@ import cgeo.geocaching.SearchResult;
 import cgeo.geocaching.connector.gc.GCParser;
 import cgeo.geocaching.settings.Settings;
 
-import android.content.Context;
+import android.app.Activity;
 
 public class PocketGeocacheListLoader extends AbstractSearchLoader {
     private final String guid;
 
-    public PocketGeocacheListLoader(final Context context, final String guid) {
-        super(context);
+    public PocketGeocacheListLoader(final Activity activity, final String guid) {
+        super(activity);
         this.guid = guid;
     }
 
@@ -18,7 +18,7 @@ public class PocketGeocacheListLoader extends AbstractSearchLoader {
     public SearchResult runSearch() {
 
         if (Settings.isGCConnectorActive()) {
-            return GCParser.searchByPocketQuery(guid, Settings.getCacheType(), Settings.isShowCaptcha(), this);
+            return GCParser.searchByPocketQuery(guid, Settings.getCacheType());
         }
 
         return new SearchResult();

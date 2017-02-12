@@ -1,10 +1,11 @@
 package cgeo.geocaching.enumerations;
 
 import cgeo.geocaching.CgeoApplication;
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
+import cgeo.geocaching.models.Geocache;
 
-import org.eclipse.jdt.annotation.NonNull;
+import org.apache.commons.lang3.StringUtils;
+import android.support.annotation.NonNull;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -28,7 +29,7 @@ public enum CacheType {
     VIRTUAL("virtual", "Virtual Cache", "294d4360-ac86-4c83-84dd-8113ef678d7e", R.string.virtual, R.drawable.type_virtual, "4"),
     WHERIGO("wherigo", "Wherigo Cache", "0544fa55-772d-4e5c-96a9-36a51ebcf5c9", R.string.wherigo, R.drawable.type_wherigo, "1858"),
     LOSTANDFOUND("lostfound", "Lost and Found Event Cache", "3ea6533d-bb52-42fe-b2d2-79a3424d4728", R.string.lostfound, R.drawable.type_event, "3653"), // icon missing
-    PROJECT_APE("ape", "Project Ape Cache", "2555690d-b2bc-4b55-b5ac-0cb704c0b768", R.string.ape, R.drawable.type_ape, "2"),
+    PROJECT_APE("ape", "Project Ape Cache", "2555690d-b2bc-4b55-b5ac-0cb704c0b768", R.string.ape, R.drawable.type_ape, "9"),
     GCHQ("gchq", "Groundspeak HQ", "416f2494-dc17-4b6a-9bab-1a29dd292d8c", R.string.gchq, R.drawable.type_hq, "3773"),
     GPS_EXHIBIT("gps", "GPS Adventures Exhibit", "72e69af2-7986-4990-afd9-bc16cbbb4ce3", R.string.gps, R.drawable.type_event, "1304"), // icon missing
     BLOCK_PARTY("block", "Groundspeak Block Party", "bc2f3df2-1aab-4601-b2ff-b5091f6c02e3", R.string.block, R.drawable.type_event, "4738"), // icon missing
@@ -60,17 +61,21 @@ public enum CacheType {
     }
 
     @NonNull
-    private final static Map<String, CacheType> FIND_BY_ID = new HashMap<>();
+    private static final Map<String, CacheType> FIND_BY_ID = new HashMap<>();
     @NonNull
-    private final static Map<String, CacheType> FIND_BY_PATTERN = new HashMap<>();
+    private static final Map<String, CacheType> FIND_BY_PATTERN = new HashMap<>();
     @NonNull
-    private final static Map<String, CacheType> FIND_BY_GUID = new HashMap<>();
+    private static final Map<String, CacheType> FIND_BY_GUID = new HashMap<>();
+    @NonNull private static final Map<String, CacheType> FIND_BY_WPT_TYPE = new HashMap<>();
 
     static {
         for (final CacheType ct : values()) {
             FIND_BY_ID.put(ct.id, ct);
             FIND_BY_PATTERN.put(ct.pattern.toLowerCase(Locale.US), ct);
             FIND_BY_GUID.put(ct.guid, ct);
+            if (StringUtils.isNotBlank(ct.wptTypeId)) {
+                FIND_BY_WPT_TYPE.put(ct.wptTypeId, ct);
+            }
         }
         // Add old mystery type for GPX file compatibility.
         FIND_BY_PATTERN.put("Mystery Cache".toLowerCase(Locale.US), MYSTERY);
@@ -78,11 +83,17 @@ public enum CacheType {
         FIND_BY_PATTERN.put("Traditional Geocache".toLowerCase(Locale.US), TRADITIONAL);
         // map lab caches to the virtual type for the time being
         FIND_BY_PATTERN.put("Lab Cache".toLowerCase(Locale.US), VIRTUAL);
+
+        // Geocaching.ru
+        FIND_BY_PATTERN.put("Multistep Traditional cache".toLowerCase(Locale.US), MULTI);
+        FIND_BY_PATTERN.put("Multistep Virtual cache".toLowerCase(Locale.US), MYSTERY);
+        FIND_BY_PATTERN.put("Contest".toLowerCase(Locale.US), EVENT);
+        FIND_BY_PATTERN.put("Event".toLowerCase(Locale.US), EVENT);
     }
 
     @NonNull
     public static CacheType getById(final String id) {
-        final CacheType result = (id != null) ? FIND_BY_ID.get(id.toLowerCase(Locale.US).trim()) : null;
+        final CacheType result = id != null ? FIND_BY_ID.get(id.toLowerCase(Locale.US).trim()) : null;
         if (result == null) {
             return UNKNOWN;
         }
@@ -91,7 +102,16 @@ public enum CacheType {
 
     @NonNull
     public static CacheType getByPattern(final String pattern) {
-        final CacheType result = (pattern != null) ? FIND_BY_PATTERN.get(pattern.toLowerCase(Locale.US).trim()) : null;
+        final CacheType result = pattern != null ? FIND_BY_PATTERN.get(pattern.toLowerCase(Locale.US).trim()) : null;
+        if (result != null) {
+            return result;
+        }
+        return UNKNOWN;
+    }
+
+    @NonNull
+    public static CacheType getByGuid(final String guid) {
+        final CacheType result = guid != null ? FIND_BY_GUID.get(guid) : null;
         if (result == null) {
             return UNKNOWN;
         }
@@ -99,21 +119,22 @@ public enum CacheType {
     }
 
     @NonNull
-    public static CacheType getByGuid(final String id) {
-        final CacheType result = (id != null) ? FIND_BY_GUID.get(id) : null;
+    public static CacheType getByWaypointType(final String typeNumber) {
+        final CacheType result = typeNumber != null ? FIND_BY_WPT_TYPE.get(typeNumber) : null;
         if (result == null) {
-            return UNKNOWN;
+            // earthcaches don't use their numeric ID on search result pages, but a literal "earthcache". therefore have a fallback
+            return getByPattern(typeNumber);
         }
         return result;
     }
 
     @NonNull
     public final String getL10n() {
-        return CgeoApplication.getInstance().getBaseContext().getResources().getString(stringId);
+        return CgeoApplication.getInstance().getBaseContext().getString(stringId);
     }
 
     public boolean isEvent() {
-        return EVENT == this || MEGA_EVENT == this || CITO == this || GIGA_EVENT == this || LOSTANDFOUND == this || BLOCK_PARTY == this || GPS_EXHIBIT == this;
+        return this == EVENT || this == MEGA_EVENT || this == CITO || this == GIGA_EVENT || this == LOSTANDFOUND || this == BLOCK_PARTY || this == GPS_EXHIBIT;
     }
 
     @Override
@@ -137,10 +158,10 @@ public enum CacheType {
     }
 
     public boolean applyDistanceRule() {
-        return TRADITIONAL == this || PROJECT_APE == this || GCHQ == this;
+        return this == TRADITIONAL || this == PROJECT_APE || this == GCHQ;
     }
 
     public boolean isVirtual() {
-        return VIRTUAL == this || WEBCAM == this || EARTH == this;
+        return this == VIRTUAL || this == WEBCAM || this == EARTH;
     }
 }

@@ -1,6 +1,8 @@
 # We use the general android proguard config. See project.properties for details.
 
-# Suppress notes about classes from the general config, which we don't use at all. 
+# cgeo --------------------------------------------------------------------------------------------
+
+# Suppress notes about classes from the general config, which we don't use at all.
 -dontnote **.ILicensingService
 
 -printusage usage.txt
@@ -10,31 +12,127 @@
 -allowaccessmodification
 -optimizations !code/simplification/arithmetic,!code/allocation/variable
 
+-keep,includedescriptorclasses class cgeo.geocaching.** { *; }
+-keep class android.support.v4.os.** { *; }
+
+# The backup agent class is not called from our code.
+-keep public class cgeo.geocaching.backup.CentralBackupAgent
+
+# action providers are only referenced from XML
+-keep public class android.support.v7.widget.ShareActionProvider { *; }
+-keep public class cgeo.geocaching.sorting.SortActionProvider { *; }
+-keep public class cgeo.geocaching.ui.NavigationActionProvider { *; }
+-keep public class cgeo.geocaching.apps.navi.NavigationSelectionActionProvider  { *; }
+
+# CustomProgressDialog accesses the standard dialog via reflection
+-dontnote cgeo.geocaching.ui.dialog.CustomProgressDialog
+
+# ignore warning: Ignoring InnerClasses attribute for an anonymous inner class...
+-keepattributes EnclosingMethod
+
+# Android -----------------------------------------------------------------------------------------
+
+# Our build contains a legacy http client jar without any good reason
+# https://code.google.com/p/android/issues/detail?id=194513
+-dontnote android.net.http.SslCertificate
+-dontnote android.net.http.SslError
+-dontnote android.net.http.SslCertificate$DName
+-dontnote org.apache.http.conn.scheme.SocketFactory
+-dontnote org.apache.http.conn.scheme.HostNameResolver
+-dontnote org.apache.http.conn.ConnectTimeoutException
+-dontnote org.apache.http.params.HttpParams
+
+# Apache commons ----------------------------------------------------------------------------------
+
 # apache.commons.collections has some bean related collections, which are undefined in Android
 -dontwarn java.beans.*
+# ignore reflection warnings
+-dontnote org.apache.commons.compress.**
 
-# rxjava includes references to the test frameworks within their class files
--dontwarn org.mockito.**
--dontwarn org.junit.**
--dontwarn org.robolectric.**
+# keep some test only utils classes for the plain unit tests
+-keep class org.apache.commons.lang3.StringUtils { *; }
+-keep class org.apache.commons.io.IOUtils { *; }
+-keep class org.apache.commons.io.FileUtils { *; }
+-dontnote org.apache.commons.io.IOUtils
+-dontnote org.apache.commons.lang3.StringUtils
+# IOFileFilter references FileUtils, suppress related notes
+-dontnote org.apache.commons.io.FileUtils
 
-# rxjava internal references sun.misc.Unsafe
--dontwarn sun.misc.Unsafe
+# commons compress
+-dontwarn java.nio.channels.SeekableByteChannel
+-dontwarn java.nio.file.attribute.FileAttribute
+-dontwarn java.io.File
+
+# AssertJ -----------------------------------------------------------------------------------------
+# ignore all things in AssertJ, as long as tests are generally running fine
+-dontnote org.assertj.core.internal.**
+
+# Butter Knife ------------------------------------------------------------------------------------
+
+# Butter knife recommended settings from website, see http://jakewharton.github.io/butterknife/
+-dontwarn butterknife.internal.**
+-keep class **$$ViewInjector { *; }
+
+# Jackson XML -------------------------------------------------------------------------------------
 
 # jackson internal references
 -dontwarn org.w3c.dom.bootstrap.DOMImplementationRegistry
 
-#-dontnote org.apache.commons.logging.**
+# this does not exist on jdk6 and is only loaded dynamically by jackson if needed
+-dontwarn java.nio.file.Path*
 
--keep class cgeo.geocaching.** { *; }
--keep class android.support.v4.os.** { *; }
+# Junit -------------------------------------------------------------------------------------------
 
--keep class ch.boye.httpclientandroidlib.conn.scheme.Scheme { *; }
--keep class ch.boye.httpclientandroidlib.params.HttpParams { *; }
--keep class ch.boye.httpclientandroidlib.client.HttpClient { *; }
--dontnote ch.boye.httpclientandroidlib.**
--dontwarn ch.boye.httpclientandroidlib.impl.auth.NegotiateScheme
+# the Junit 4 library used for local tests conflicts with the Android bundled Junit 3 library
+-dontnote junit.**
+
+# Mapsforge ---------------------------------------------------------------------------------------
+
+-dontwarn com.caverock.androidsvg.R$styleable
+-dontwarn com.caverock.androidsvg.R
+-dontwarn org.kxml2.io.KXmlParser
+
+-dontnote com.caverock.androidsvg.SVG
+-dontnote org.mapsforge.map.android.input.MapZoomControls
+
+# Okhttp ------------------------------------------------------------------------------------------
+
+# OkHttp references unused classes
+-dontwarn java.nio.file.*
+-dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
+# ignore reflection warnings
+-dontnote okhttp3.internal.platform.**
+
+# Play Services -----------------------------------------------------------------------------------
+
+# Play Service references to classes introduced in higher API levels
+-dontwarn com.google.android.gms.**
+
+# ignore reflection warnings
+-dontnote com.google.android.gms.**
+
+# RxJava ------------------------------------------------------------------------------------------
+
+# rxjava includes references to the test frameworks within their class files
+-dontwarn org.junit.**
+
+# used in tests
+-keepclassmembers public class * extends io.reactivex.Observable { public ** blockingFirst(); }
+
+# Showcaseview ------------------------------------------------------------------------------------
+
+# ignore reflection warnings
+-dontnote com.github.amlcurran.showcaseview.**
+
+
+# ViewPager Indicator -----------------------------------------------------------------------------
+-dontnote com.viewpagerindicator.TitlePageIndicator
+-dontnote com.viewpagerindicator.TabPageIndicator
+
+# Unsorted ----------------------------------------------------------------------------------------
+
 -dontwarn  org.springframework.**
+-dontwarn org.tukaani.xz.**
 
 -keepclasseswithmembers class * {
     public <init>(android.content.Context, android.util.AttributeSet);
@@ -51,30 +149,6 @@
     public void set*(...);
 }
 
-# The backup agent class is not called from our code.
--keep public class cgeo.geocaching.backup.CentralBackupAgent
-
-# Butter knife view injection, see http://jakewharton.github.io/butterknife/
--dontwarn butterknife.internal.**
--keep class **$$ViewInjector { *; }
--keepnames class * { @butterknife.InjectView *;}
-
-# Null analysis annotations of Eclipse JDT are just used by the Eclipse compiler, so ignore them here
--dontwarn org.eclipse.jdt.annotation.**
-
 # keep Emma code coverage during debug builds, and ignore related warnings
 -keep class com.vladium.** { *; }
 -dontwarn com.vladium.**
-
-# keep some test only utils classes
--keep class org.apache.commons.lang3.StringUtils { *; }
--keep class org.apache.commons.io.IOUtils { *; }
--keep class org.apache.commons.io.FileUtils { *; }
-
-# action providers are only referenced from XML
--keep public class cgeo.geocaching.sorting.SortActionProvider { *; }
--keep public class cgeo.geocaching.ui.NavigationActionProvider { *; }
--keep public class cgeo.geocaching.apps.navi.NavigationSelectionActionProvider  { *; }
-
-# Play Service references to classes introduced in higher API levels
--dontwarn com.google.android.gms.**

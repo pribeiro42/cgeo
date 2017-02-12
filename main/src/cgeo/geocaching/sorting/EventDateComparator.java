@@ -1,13 +1,13 @@
 package cgeo.geocaching.sorting;
 
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.models.Geocache;
 
 /**
- * Compares caches by date. Used only for event caches.
+ * Compares caches by date. Used only for event caches, if the cache list detects that a list contains only events.
  */
 public class EventDateComparator extends DateComparator {
 
-    final static public EventDateComparator singleton = new EventDateComparator();
+    public static final EventDateComparator INSTANCE = new EventDateComparator();
 
     @Override
     protected int sortSameDate(final Geocache left, final Geocache right) {
@@ -20,5 +20,10 @@ public class EventDateComparator extends DateComparator {
      */
     private static int compare(final int left, final int right) {
         return left < right ? -1 : (left == right ? 0 : 1);
+    }
+
+    @Override
+    public boolean isAutoManaged() {
+        return true;
     }
 }

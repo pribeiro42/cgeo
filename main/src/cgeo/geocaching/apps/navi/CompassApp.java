@@ -1,12 +1,12 @@
 package cgeo.geocaching.apps.navi;
 
 import cgeo.geocaching.CompassActivity;
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.R;
-import cgeo.geocaching.Waypoint;
+import cgeo.geocaching.models.Waypoint;
 import cgeo.geocaching.location.Geopoint;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.app.Activity;
 
@@ -22,17 +22,17 @@ class CompassApp extends AbstractPointNavigationApp {
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Geopoint coords) {
+    public void navigate(@NonNull final Activity activity, @NonNull final Geopoint coords) {
         CompassActivity.startActivityPoint(activity, coords, getString(R.string.navigation_direct_navigation));
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Waypoint waypoint) {
+    public void navigate(@NonNull final Activity activity, @NonNull final Waypoint waypoint) {
         CompassActivity.startActivityWaypoint(activity, waypoint);
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Geocache cache) {
+    public void navigate(@NonNull final Activity activity, @NonNull final Geocache cache) {
         CompassActivity.startActivityCache(activity, cache);
     }
 

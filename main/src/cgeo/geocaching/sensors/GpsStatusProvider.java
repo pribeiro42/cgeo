@@ -1,18 +1,16 @@
 package cgeo.geocaching.sensors;
 
-import cgeo.geocaching.utils.RxUtils;
-
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.subscriptions.Subscriptions;
+import cgeo.geocaching.utils.AndroidRxUtils;
 
 import android.content.Context;
 import android.location.GpsSatellite;
 import android.location.GpsStatus;
 import android.location.GpsStatus.Listener;
 import android.location.LocationManager;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 
 public class GpsStatusProvider {
 
@@ -21,9 +19,9 @@ public class GpsStatusProvider {
     }
 
     public static class Status {
-        final public boolean gpsEnabled;
-        final public int satellitesVisible;
-        final public int satellitesFixed;
+        public final boolean gpsEnabled;
+        public final int satellitesVisible;
+        public final int satellitesFixed;
 
         public Status(final boolean gpsEnabled, final int satellitesVisible, final int satellitesFixed) {
             this.gpsEnabled = gpsEnabled;
@@ -35,9 +33,9 @@ public class GpsStatusProvider {
     private static final Status NO_GPS = new Status(false, 0, 0);
 
     public static Observable<Status> create(final Context context) {
-        final Observable<Status> observable = Observable.create(new OnSubscribe<Status>() {
+        final Observable<Status> observable = Observable.create(new ObservableOnSubscribe<Status>() {
             @Override
-            public void call(final Subscriber<? super Status> subscriber) {
+            public void subscribe(final ObservableEmitter<Status> subscriber) throws Exception {
                 final LocationManager geoManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
                 final Listener listener = new Listener() {
                     Status latest = new Status(false, 0, 0);
@@ -77,19 +75,14 @@ public class GpsStatusProvider {
                 };
                 subscriber.onNext(NO_GPS);
                 geoManager.addGpsStatusListener(listener);
-                subscriber.add(Subscriptions.create(new Action0() {
+                subscriber.setDisposable(AndroidRxUtils.disposeOnCallbacksScheduler(new Runnable() {
                     @Override
-                    public void call() {
-                        RxUtils.looperCallbacksWorker.schedule(new Action0() {
-                            @Override
-                            public void call() {
-                                geoManager.removeGpsStatusListener(listener);
-                            }
-                        });
+                    public void run() {
+                        geoManager.removeGpsStatusListener(listener);
                     }
                 }));
             }
         });
-        return observable.subscribeOn(RxUtils.looperCallbacksScheduler);
+        return observable.subscribeOn(AndroidRxUtils.looperCallbacksScheduler);
     }
 }

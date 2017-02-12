@@ -1,21 +1,27 @@
 package cgeo.geocaching.connector.oc;
 
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
 import cgeo.geocaching.connector.AbstractConnector;
-import cgeo.geocaching.enumerations.LogType;
+import cgeo.geocaching.connector.capability.Smiley;
+import cgeo.geocaching.connector.capability.SmileyCapability;
+import cgeo.geocaching.log.LogType;
+import cgeo.geocaching.models.Geocache;
 
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class OCConnector extends AbstractConnector {
+import org.apache.commons.lang3.StringUtils;
 
+public class OCConnector extends AbstractConnector implements SmileyCapability {
+
+    @NonNull
     private final String host;
+    private final boolean https;
+    @NonNull
     private final String name;
     private final Pattern codePattern;
     private static final Pattern GPX_ZIP_FILE_PATTERN = Pattern.compile("oc[a-z]{2,3}\\d{5,}\\.zip", Pattern.CASE_INSENSITIVE);
@@ -23,9 +29,10 @@ public class OCConnector extends AbstractConnector {
     private static final List<LogType> STANDARD_LOG_TYPES = Arrays.asList(LogType.FOUND_IT, LogType.DIDNT_FIND_IT, LogType.NOTE);
     private static final List<LogType> EVENT_LOG_TYPES = Arrays.asList(LogType.WILL_ATTEND, LogType.ATTENDED, LogType.NOTE);
 
-    public OCConnector(final String name, final String host, final String prefix) {
+    public OCConnector(@NonNull final String name, @NonNull final String host, final boolean https, final String prefix) {
         this.name = name;
         this.host = host;
+        this.https = https;
         codePattern = Pattern.compile(prefix + "[A-Z0-9]+", Pattern.CASE_INSENSITIVE);
     }
 
@@ -65,7 +72,7 @@ public class OCConnector extends AbstractConnector {
     @Override
     @NonNull
     protected String getCacheUrlPrefix() {
-        return "http://" + host + "/viewcache.php?wp=";
+        return getSchemeAndHost() + "/viewcache.php?wp=";
     }
 
     @Override
@@ -101,5 +108,37 @@ public class OCConnector extends AbstractConnector {
         // host.tld/viewcache.php?wp=geocode
         final String secondLevel = StringUtils.substringAfter(url, shortHost + "/viewcache.php?wp=");
         return canHandle(secondLevel) ? secondLevel : super.getGeocodeFromUrl(url);
+    }
+
+    @Override
+    @Nullable
+    public String getCreateAccountUrl() {
+        return getSchemeAndHost() + "/register.php";
+    }
+
+    @Override
+    public List<Smiley> getSmileys() {
+        return OCSmileysProvider.getSmileys();
+    }
+
+    @Override
+    public boolean getHttps() {
+        return https;
+    }
+
+    /**
+     * Return the scheme part including the colon and the slashes.
+     *
+     * @return either "https://" or "http://"
+     */
+    protected String getSchemePart() {
+        return https ? "https://" : "http://";
+    }
+
+    /**
+     * Return the scheme part and the host (e.g., "https://opencache.uk").
+     */
+    protected String getSchemeAndHost() {
+        return getSchemePart() + host;
     }
 }

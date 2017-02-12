@@ -1,12 +1,8 @@
 package cgeo.geocaching.network;
 
 import cgeo.geocaching.CgeoApplication;
+import cgeo.geocaching.utils.Charsets;
 
-import org.apache.commons.io.Charsets;
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.Nullable;
-
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
@@ -15,7 +11,9 @@ import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.nfc.NfcAdapter.CreateNdefMessageCallback;
 import android.nfc.NfcEvent;
-import android.os.Build;
+import android.support.annotation.Nullable;
+
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * utility class managing all NFC related tasks
@@ -45,22 +43,17 @@ public class AndroidBeam {
     public interface ActivitySharingInterface {
         /** Return an URL that represent the current activity for sharing or null for no sharing. */
         @Nullable
-        public String getAndroidBeamUri();
+        String getAndroidBeamUri();
     }
 
     public static void enable(final Activity activity, final ActivitySharingInterface sharingInterface) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            initializeICSAndroidBeam(activity, createMessageCallback(sharingInterface));
-        }
+        initializeICSAndroidBeam(activity, createMessageCallback(sharingInterface));
     }
 
     public static void disable(final Activity activity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            initializeICSAndroidBeam(activity, null);
-        }
+        initializeICSAndroidBeam(activity, null);
     }
 
-    @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
     private static void initializeICSAndroidBeam(final Activity activity, final CreateNdefMessageCallback messageCallback) {
         final NfcAdapter nfcAdapter = NfcAdapter.getDefaultAdapter(activity);
         if (nfcAdapter == null) {
@@ -70,7 +63,6 @@ public class AndroidBeam {
 
     }
 
-    @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
     private static CreateNdefMessageCallback createMessageCallback(final ActivitySharingInterface sharingInterface) {
         return new NfcAdapter.CreateNdefMessageCallback() {
             @Override

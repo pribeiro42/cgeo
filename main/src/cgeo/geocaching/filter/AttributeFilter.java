@@ -1,14 +1,11 @@
 package cgeo.geocaching.filter;
 
-import cgeo.geocaching.CgeoApplication;
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.R;
+import cgeo.geocaching.enumerations.CacheAttribute;
+import cgeo.geocaching.models.Geocache;
 
-import org.eclipse.jdt.annotation.NonNull;
-
-import android.content.res.Resources;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.support.annotation.NonNull;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -17,7 +14,20 @@ class AttributeFilter extends AbstractFilter {
 
     private final String attribute;
 
-    public AttributeFilter(@NonNull final String name, final String attribute) {
+    public static final Creator<AttributeFilter> CREATOR = new Parcelable.Creator<AttributeFilter>() {
+
+        @Override
+        public AttributeFilter createFromParcel(final Parcel in) {
+            return new AttributeFilter(in);
+        }
+
+        @Override
+        public AttributeFilter[] newArray(final int size) {
+            return new AttributeFilter[size];
+        }
+    };
+
+    AttributeFilter(@NonNull final String name, final String attribute) {
         super(name);
         this.attribute = attribute;
     }
@@ -25,12 +35,6 @@ class AttributeFilter extends AbstractFilter {
     protected AttributeFilter(final Parcel in) {
         super(in);
         attribute = in.readString();
-    }
-
-    private static String getName(final String attribute, final Resources res, final String packageName) {
-        // dynamically search for a translation of the attribute
-        final int id = res.getIdentifier(attribute, "string", packageName);
-        return id > 0 ? res.getString(id) : attribute;
     }
 
     @Override
@@ -43,12 +47,10 @@ class AttributeFilter extends AbstractFilter {
         @Override
         @NonNull
         public List<IFilter> getFilters() {
-            final String packageName = CgeoApplication.getInstance().getBaseContext().getPackageName();
-            final Resources res = CgeoApplication.getInstance().getResources();
-
             final List<IFilter> filters = new LinkedList<>();
-            for (final String id: res.getStringArray(R.array.attribute_ids)) {
-                filters.add(new AttributeFilter(getName("attribute_" + id, res, packageName), id));
+            for (final CacheAttribute cacheAttribute : CacheAttribute.values()) {
+                filters.add(new AttributeFilter(cacheAttribute.getL10n(true), cacheAttribute.getValue(true)));
+                filters.add(new AttributeFilter(cacheAttribute.getL10n(false), cacheAttribute.getValue(false)));
             }
             return filters;
         }
@@ -60,18 +62,4 @@ class AttributeFilter extends AbstractFilter {
         super.writeToParcel(dest, flags);
         dest.writeString(attribute);
     }
-
-    public static final Creator<AttributeFilter> CREATOR
-            = new Parcelable.Creator<AttributeFilter>() {
-
-        @Override
-        public AttributeFilter createFromParcel(final Parcel in) {
-            return new AttributeFilter(in);
-        }
-
-        @Override
-        public AttributeFilter[] newArray(final int size) {
-            return new AttributeFilter[size];
-        }
-    };
 }

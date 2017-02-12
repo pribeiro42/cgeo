@@ -2,7 +2,7 @@ package cgeo.geocaching.utils;
 
 import org.apache.commons.lang3.CharEncoding;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -17,10 +17,6 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 public final class CryptUtils {
-
-    private CryptUtils() {
-        // utility class
-    }
 
     private static final byte[] EMPTY = {};
     private static final char[] BASE64MAP1 = new char[64];
@@ -48,6 +44,10 @@ public final class CryptUtils {
         }
     }
 
+    private CryptUtils() {
+        // utility class
+    }
+
     private static class Rot13Encryption {
         private boolean plaintext = false;
 
@@ -60,7 +60,7 @@ public final class CryptUtils {
             } else if (!plaintext) {
                 final int capitalized = result & 32;
                 result &= ~capitalized;
-                result = ((result >= 'A') && (result <= 'Z') ? ((result - 'A' + 13) % 26 + 'A') : result)
+                result = (result >= 'A' && result <= 'Z' ? ((result - 'A' + 13) % 26 + 'A') : result)
                         | capitalized;
             }
             return (char) result;

@@ -1,45 +1,41 @@
 package cgeo.geocaching.files;
 
 import cgeo.geocaching.CgeoApplication;
-import cgeo.geocaching.DataStore;
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.LogEntry;
 import cgeo.geocaching.R;
-import cgeo.geocaching.Trackable;
-import cgeo.geocaching.Waypoint;
 import cgeo.geocaching.connector.ConnectorFactory;
 import cgeo.geocaching.connector.IConnector;
 import cgeo.geocaching.connector.capability.ILogin;
 import cgeo.geocaching.connector.tc.TerraCachingLogType;
 import cgeo.geocaching.connector.tc.TerraCachingType;
+import cgeo.geocaching.enumerations.CacheAttribute;
 import cgeo.geocaching.enumerations.CacheSize;
 import cgeo.geocaching.enumerations.CacheType;
 import cgeo.geocaching.enumerations.LoadFlags;
 import cgeo.geocaching.enumerations.LoadFlags.LoadFlag;
 import cgeo.geocaching.enumerations.LoadFlags.RemoveFlag;
 import cgeo.geocaching.enumerations.LoadFlags.SaveFlag;
-import cgeo.geocaching.enumerations.LogType;
 import cgeo.geocaching.enumerations.WaypointType;
 import cgeo.geocaching.list.StoredList;
 import cgeo.geocaching.location.Geopoint;
-import cgeo.geocaching.utils.CancellableHandler;
+import cgeo.geocaching.log.LogEntry;
+import cgeo.geocaching.log.LogType;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Trackable;
+import cgeo.geocaching.models.Waypoint;
+import cgeo.geocaching.storage.DataStore;
+import cgeo.geocaching.utils.DisposableHandler;
 import cgeo.geocaching.utils.HtmlUtils;
 import cgeo.geocaching.utils.Log;
 import cgeo.geocaching.utils.MatcherWrapper;
 import cgeo.geocaching.utils.SynchronizedDateFormat;
-
-import org.apache.commons.lang3.CharEncoding;
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-import org.xml.sax.Attributes;
-import org.xml.sax.SAXException;
 
 import android.sax.Element;
 import android.sax.EndElementListener;
 import android.sax.EndTextElementListener;
 import android.sax.RootElement;
 import android.sax.StartElementListener;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Xml;
 
 import java.io.BufferedReader;
@@ -49,6 +45,7 @@ import java.io.InputStreamReader;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -57,7 +54,12 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-public abstract class GPXParser extends FileParser {
+import org.apache.commons.lang3.CharEncoding;
+import org.apache.commons.lang3.StringUtils;
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+
+abstract class GPXParser extends FileParser {
 
     private static final SynchronizedDateFormat formatSimple = new SynchronizedDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US); // 2010-04-20T07:00:00
     private static final SynchronizedDateFormat formatSimpleZ = new SynchronizedDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US); // 2010-04-20T07:00:00Z
@@ -66,7 +68,7 @@ public abstract class GPXParser extends FileParser {
     /**
      * Attention: case sensitive geocode pattern to avoid matching normal words in the name or description of the cache.
      */
-    private static final Pattern PATTERN_GEOCODE = Pattern.compile("([0-9A-Z]{2,})");
+    private static final Pattern PATTERN_GEOCODE = Pattern.compile("([0-9A-Z]{5,})");
     private static final Pattern PATTERN_GUID = Pattern.compile(".*" + Pattern.quote("guid=") + "([0-9a-z\\-]+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern PATTERN_URL_GEOCODE = Pattern.compile(".*" + Pattern.quote("wp=") + "([A-Z][0-9A-Z]+)", Pattern.CASE_INSENSITIVE);
     /**
@@ -82,6 +84,9 @@ public abstract class GPXParser extends FileParser {
      * supported GSAK extension of the GPX format
      */
     private static final String[] GSAK_NS = {
+            "http://www.gsak.net/xmlv1/1",
+            "http://www.gsak.net/xmlv1/2",
+            "http://www.gsak.net/xmlv1/3",
             "http://www.gsak.net/xmlv1/4",
             "http://www.gsak.net/xmlv1/5",
             "http://www.gsak.net/xmlv1/6"
@@ -94,12 +99,12 @@ public abstract class GPXParser extends FileParser {
     private static final Pattern PATTERN_MILLISECONDS = Pattern.compile("\\.\\d{3,7}");
 
     private int listId = StoredList.STANDARD_LIST_ID;
-    final protected String namespace;
-    final private String version;
+    protected final String namespace;
+    private final String version;
 
     private Geocache cache;
     private Trackable trackable = new Trackable();
-    private LogEntry log = null;
+    private LogEntry.Builder logBuilder = null;
 
     private String type = null;
     private String sym = null;
@@ -137,133 +142,13 @@ public abstract class GPXParser extends FileParser {
     private final class UserDataListener implements EndTextElementListener {
         private final int index;
 
-        public UserDataListener(final int index) {
+        UserDataListener(final int index) {
             this.index = index;
         }
 
         @Override
         public void end(final String user) {
             userData[index] = validate(user);
-        }
-    }
-
-    private static final class CacheAttributeTranslator {
-        // List of cache attributes matching IDs used in GPX files.
-        // The ID is represented by the position of the String in the array.
-        // Strings are not used as text but as resource IDs of strings, just to be aware of changes
-        // made in strings.xml which then will lead to compile errors here and not to runtime errors.
-        private static final int[] CACHE_ATTRIBUTES = {
-                -1, // 0
-                R.string.attribute_dogs_yes, // 1
-                R.string.attribute_fee_yes, // 2
-                R.string.attribute_rappelling_yes, // 3
-                R.string.attribute_boat_yes, // 4
-                R.string.attribute_scuba_yes, // 5
-                R.string.attribute_kids_yes, // 6
-                R.string.attribute_onehour_yes, // 7
-                R.string.attribute_scenic_yes, // 8
-                R.string.attribute_hiking_yes, // 9
-                R.string.attribute_climbing_yes, // 10
-                R.string.attribute_wading_yes, // 11
-                R.string.attribute_swimming_yes, // 12
-                R.string.attribute_available_yes, // 13
-                R.string.attribute_night_yes, // 14
-                R.string.attribute_winter_yes, // 15
-                -1, // 16
-                R.string.attribute_poisonoak_yes, // 17
-                R.string.attribute_dangerousanimals_yes, // 18
-                R.string.attribute_ticks_yes, // 19
-                R.string.attribute_mine_yes, // 20
-                R.string.attribute_cliff_yes, // 21
-                R.string.attribute_hunting_yes, // 22
-                R.string.attribute_danger_yes, // 23
-                R.string.attribute_wheelchair_yes, // 24
-                R.string.attribute_parking_yes, // 25
-                R.string.attribute_public_yes, // 26
-                R.string.attribute_water_yes, // 27
-                R.string.attribute_restrooms_yes, // 28
-                R.string.attribute_phone_yes, // 29
-                R.string.attribute_picnic_yes, // 30
-                R.string.attribute_camping_yes, // 31
-                R.string.attribute_bicycles_yes, // 32
-                R.string.attribute_motorcycles_yes, // 33
-                R.string.attribute_quads_yes, // 34
-                R.string.attribute_jeeps_yes, // 35
-                R.string.attribute_snowmobiles_yes, // 36
-                R.string.attribute_horses_yes, // 37
-                R.string.attribute_campfires_yes, // 38
-                R.string.attribute_thorn_yes, // 39
-                R.string.attribute_stealth_yes, // 40
-                R.string.attribute_stroller_yes, // 41
-                R.string.attribute_firstaid_yes, // 42
-                R.string.attribute_cow_yes, // 43
-                R.string.attribute_flashlight_yes, // 44
-                R.string.attribute_landf_yes, // 45
-                R.string.attribute_rv_yes, // 46
-                R.string.attribute_field_puzzle_yes, // 47
-                R.string.attribute_uv_yes, // 48
-                R.string.attribute_snowshoes_yes, // 49
-                R.string.attribute_skiis_yes, // 50
-                R.string.attribute_s_tool_yes, // 51
-                R.string.attribute_nightcache_yes, // 52
-                R.string.attribute_parkngrab_yes, // 53
-                R.string.attribute_abandonedbuilding_yes, // 54
-                R.string.attribute_hike_short_yes, // 55
-                R.string.attribute_hike_med_yes, // 56
-                R.string.attribute_hike_long_yes, // 57
-                R.string.attribute_fuel_yes, // 58
-                R.string.attribute_food_yes, // 59
-                R.string.attribute_wirelessbeacon_yes, // 60
-                R.string.attribute_partnership_yes, // 61
-                R.string.attribute_seasonal_yes, // 62
-                R.string.attribute_touristok_yes, // 63
-                R.string.attribute_treeclimbing_yes, // 64
-                R.string.attribute_frontyard_yes, // 65
-                R.string.attribute_teamwork_yes, // 66
-                R.string.attribute_geotour_yes, // 67
-        };
-        private static final String YES = "_yes";
-        private static final String NO = "_no";
-        private static final Pattern BASENAME_PATTERN = Pattern.compile("^.*attribute_(.*)(_yes|_no)");
-
-        // map GPX-Attribute-Id to baseName
-        public static String getBaseName(final int id) {
-            if (id < 0) {
-                return null;
-            }
-            // get String out of array
-            if (CACHE_ATTRIBUTES.length <= id) {
-                return null;
-            }
-            final int stringId = CACHE_ATTRIBUTES[id];
-            if (stringId == -1) {
-                return null; // id not found
-            }
-            // get text for string
-            final String stringName;
-            try {
-                stringName = CgeoApplication.getInstance().getResources().getResourceName(stringId);
-            } catch (final NullPointerException ignored) {
-                return null;
-            }
-            if (stringName == null) {
-                return null;
-            }
-            // cut out baseName
-            final MatcherWrapper m = new MatcherWrapper(BASENAME_PATTERN, stringName);
-            if (!m.matches()) {
-                return null;
-            }
-            return m.group(1);
-        }
-
-        // @return  baseName + "_yes" or "_no" e.g. "food_no" or "uv_yes"
-        public static String getInternalId(final int attributeId, final boolean active) {
-            final String baseName = getBaseName(attributeId);
-            if (baseName == null) {
-                return null;
-            }
-            return baseName + (active ? YES : NO);
         }
     }
 
@@ -289,7 +174,7 @@ public abstract class GPXParser extends FileParser {
 
     @Override
     @NonNull
-    public Collection<Geocache> parse(@NonNull final InputStream stream, @Nullable final CancellableHandler progressHandler) throws IOException, ParserException {
+    public Collection<Geocache> parse(@NonNull final InputStream stream, @Nullable final DisposableHandler progressHandler) throws IOException, ParserException {
         // when importing a ZIP, reset the child waypoint state
         terraChildWaypoint = false;
 
@@ -346,15 +231,15 @@ public abstract class GPXParser extends FileParser {
                     findGeoCode(cmt);
                 }
                 // take the name as code, if nothing else is available
-                if (StringUtils.isBlank(cache.getGeocode())) {
-                    if (StringUtils.isNotBlank(name)) {
-                        cache.setGeocode(name.trim());
-                    }
+                if (StringUtils.isBlank(cache.getGeocode()) && StringUtils.isNotBlank(name)) {
+                    cache.setGeocode(name.trim());
                 }
 
                 if (isValidForImport()) {
                     fixCache(cache);
-                    cache.setListId(listId);
+                    if (listId != StoredList.TEMPORARY_LIST.id) {
+                        cache.getLists().add(listId);
+                    }
                     cache.setDetailed(true);
 
                     createNoteFromGSAKUserdata();
@@ -389,11 +274,9 @@ public abstract class GPXParser extends FileParser {
                     if (StringUtils.isBlank(parentCacheCode)) {
                         if (StringUtils.containsIgnoreCase(scriptUrl, "extremcaching")) {
                             parentCacheCode = cache.getName().substring(2);
-                        }
- else if (terraChildWaypoint) {
+                        } else if (terraChildWaypoint) {
                             parentCacheCode = StringUtils.left(cache.getGeocode(), cache.getGeocode().length() - 1);
-                        }
-                        else {
+                        } else {
                             parentCacheCode = "GC" + cache.getName().substring(2).toUpperCase(Locale.US);
                         }
                     }
@@ -416,8 +299,7 @@ public abstract class GPXParser extends FileParser {
                         waypoint.setCoords(cache.getCoords());
                         waypoint.setNote(cache.getDescription());
                         waypoint.setVisited(wptVisited);
-                        final List<Waypoint> mergedWayPoints = new ArrayList<>();
-                        mergedWayPoints.addAll(cacheForWaypoint.getWaypoints());
+                        final List<Waypoint> mergedWayPoints = new ArrayList<>(cacheForWaypoint.getWaypoints());
 
                         final List<Waypoint> newPoints = new ArrayList<>();
                         newPoints.add(waypoint);
@@ -644,9 +526,9 @@ public abstract class GPXParser extends FileParser {
                         if (attrs.getIndex("id") > -1 && attrs.getIndex("inc") > -1) {
                             final int attributeId = Integer.parseInt(attrs.getValue("id"));
                             final boolean attributeActive = Integer.parseInt(attrs.getValue("inc")) != 0;
-                            final String internalId = CacheAttributeTranslator.getInternalId(attributeId, attributeActive);
-                            if (internalId != null) {
-                                cache.getAttributes().add(internalId);
+                            final CacheAttribute attribute = CacheAttribute.getById(attributeId);
+                            if (attribute != null) {
+                                cache.getAttributes().add(attribute.getValue(attributeActive));
                             }
                         }
                     } catch (final NumberFormatException ignored) {
@@ -787,11 +669,11 @@ public abstract class GPXParser extends FileParser {
 
                 @Override
                 public void start(final Attributes attrs) {
-                    log = new LogEntry("", 0, LogType.UNKNOWN, "");
+                    logBuilder = new LogEntry.Builder();
 
                     try {
                         if (attrs.getIndex("id") > -1) {
-                            log.id = Integer.parseInt(attrs.getValue("id"));
+                            logBuilder.setId(Integer.parseInt(attrs.getValue("id")));
                         }
                     } catch (final NumberFormatException ignored) {
                         // nothing
@@ -803,8 +685,9 @@ public abstract class GPXParser extends FileParser {
 
                 @Override
                 public void end() {
-                    if (log.type != LogType.UNKNOWN) {
-                        if (log.type.isFoundLog() && StringUtils.isNotBlank(log.author)) {
+                    final LogEntry log = logBuilder.build();
+                    if (log.getType() != LogType.UNKNOWN) {
+                        if (log.getType().isFoundLog() && StringUtils.isNotBlank(log.author)) {
                             final IConnector connector = ConnectorFactory.getConnector(cache);
                             if (connector instanceof ILogin && StringUtils.equals(log.author, ((ILogin) connector).getUserName())) {
                                 cache.setFound(true);
@@ -822,7 +705,7 @@ public abstract class GPXParser extends FileParser {
                 @Override
                 public void end(final String body) {
                     try {
-                        log.date = parseDate(body).getTime();
+                        logBuilder.setDate(parseDate(body).getTime());
                     } catch (final Exception e) {
                         Log.w("Failed to parse log date", e);
                     }
@@ -835,7 +718,7 @@ public abstract class GPXParser extends FileParser {
                 @Override
                 public void end(final String body) {
                     final String logType = validate(body);
-                    log.type = LogType.getByType(logType);
+                    logBuilder.setLogType(LogType.getByType(logType));
                 }
             });
 
@@ -844,7 +727,7 @@ public abstract class GPXParser extends FileParser {
 
                 @Override
                 public void end(final String finderName) {
-                    log.author = validate(finderName);
+                    logBuilder.setAuthor(validate(finderName));
                 }
             });
 
@@ -853,7 +736,7 @@ public abstract class GPXParser extends FileParser {
 
                 @Override
                 public void end(final String logText) {
-                    log.log = validate(logText);
+                    logBuilder.setLog(validate(logText));
                 }
             });
         }
@@ -903,8 +786,7 @@ public abstract class GPXParser extends FileParser {
                 public void end(final String favoritePoints) {
                     try {
                         cache.setFavoritePoints(Integer.parseInt(favoritePoints));
-                    }
-                    catch (final NumberFormatException e) {
+                    } catch (final NumberFormatException e) {
                         Log.w("Failed to parse favorite points", e);
                     }
                 }
@@ -1045,11 +927,11 @@ public abstract class GPXParser extends FileParser {
 
             @Override
             public void start(final Attributes attrs) {
-                log = new LogEntry("", 0, LogType.UNKNOWN, "");
+                logBuilder = new LogEntry.Builder();
 
                 try {
                     if (attrs.getIndex("id") > -1) {
-                        log.id = Integer.parseInt(attrs.getValue("id"));
+                        logBuilder.setId(Integer.parseInt(attrs.getValue("id")));
                     }
                 } catch (final NumberFormatException ignored) {
                     // nothing
@@ -1061,8 +943,9 @@ public abstract class GPXParser extends FileParser {
 
             @Override
             public void end() {
-                if (log.type != LogType.UNKNOWN) {
-                    if (log.type.isFoundLog() && StringUtils.isNotBlank(log.author)) {
+                    final LogEntry log = logBuilder.build();
+                if (log.getType() != LogType.UNKNOWN) {
+                    if (log.getType().isFoundLog() && StringUtils.isNotBlank(log.author)) {
                         final IConnector connector = ConnectorFactory.getConnector(cache);
                         if (connector instanceof ILogin && StringUtils.equals(log.author, ((ILogin) connector).getUserName())) {
                             cache.setFound(true);
@@ -1080,7 +963,7 @@ public abstract class GPXParser extends FileParser {
             @Override
             public void end(final String body) {
                 try {
-                    log.date = parseDate(body).getTime();
+                    logBuilder.setDate(parseDate(body).getTime());
                 } catch (final Exception e) {
                     Log.w("Failed to parse log date", e);
                 }
@@ -1093,7 +976,7 @@ public abstract class GPXParser extends FileParser {
             @Override
             public void end(final String body) {
                 final String logType = validate(body);
-                log.type = TerraCachingLogType.getLogType(logType);
+                logBuilder.setLogType(TerraCachingLogType.getLogType(logType));
             }
         });
 
@@ -1102,7 +985,7 @@ public abstract class GPXParser extends FileParser {
 
             @Override
             public void end(final String finderName) {
-                log.author = validate(finderName);
+                logBuilder.setAuthor(validate(finderName));
             }
         });
 
@@ -1111,7 +994,7 @@ public abstract class GPXParser extends FileParser {
 
             @Override
             public void end(final String entry) {
-                log.log = trimHtml(validate(entry));
+                logBuilder.setLog(trimHtml(validate(entry)));
             }
 
         });
@@ -1163,7 +1046,6 @@ public abstract class GPXParser extends FileParser {
      * @param cache
      *            currently imported cache
      */
-    @SuppressWarnings("static-method")
     protected void afterParsing(final Geocache cache) {
         if ("GC_WayPoint1".equals(cache.getShortDescription())) {
             cache.setShortDescription("");
@@ -1215,7 +1097,7 @@ public abstract class GPXParser extends FileParser {
         wptUserDefined = false;
         logs = new ArrayList<>();
 
-        cache = new Geocache(this);
+        cache = createCache();
 
         // explicitly set all properties which could lead to database access, if left as null value
         cache.setLocation("");
@@ -1228,6 +1110,20 @@ public abstract class GPXParser extends FileParser {
         }
         originalLon = null;
         originalLat = null;
+    }
+
+    /**
+     * Geocache factory method. This explicitly sets several members to empty lists, which does not happen with the
+     * default constructor.
+     */
+    private static Geocache createCache() {
+        final Geocache newCache = new Geocache();
+
+        newCache.setReliableLatLon(true); // always assume correct coordinates, when importing from file instead of website
+        newCache.setAttributes(Collections.<String> emptyList()); // override the lazy initialized list
+        newCache.setWaypoints(Collections.<Waypoint> emptyList(), false); // override the lazy initialized list
+
+        return newCache;
     }
 
     /**
@@ -1259,7 +1155,7 @@ public abstract class GPXParser extends FileParser {
                 || StringUtils.contains(type, "geocache")
                 || StringUtils.contains(sym, "geocache")
                 || StringUtils.containsIgnoreCase(sym, "waymark")
- || (StringUtils.containsIgnoreCase(sym, "terracache") && !terraChildWaypoint);
+                || (StringUtils.containsIgnoreCase(sym, "terracache") && !terraChildWaypoint);
         if ("GC_WayPoint1".equals(cache.getShortDescription())) {
             terraChildWaypoint = true;
         }

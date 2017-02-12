@@ -1,30 +1,27 @@
 package cgeo.geocaching.gcvote;
 
 import cgeo.geocaching.CgeoApplication;
-import cgeo.geocaching.DataStore;
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
 import cgeo.geocaching.gcvote.GCVoteRatingBarUtil.OnRatingChangeListener;
-import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.storage.DataStore;
+import cgeo.geocaching.utils.AndroidRxUtils;
 import cgeo.geocaching.utils.Log;
-import cgeo.geocaching.utils.RxUtils;
-
-import org.eclipse.jdt.annotation.Nullable;
-
-import rx.functions.Action1;
-import rx.functions.Func0;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.Context;
+import android.app.Application;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
-import android.view.ContextThemeWrapper;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
+
+import java.util.concurrent.Callable;
+
+import io.reactivex.functions.Consumer;
 
 /**
  * Small dialog showing only a rating bar to vote on GCVote.com. Confirming the dialog will send the vote over the
@@ -32,18 +29,14 @@ import android.widget.Toast;
  */
 public class GCVoteDialog {
 
-    public static void show(final Activity context, final Geocache cache, final @Nullable Runnable afterVoteSent) {
-        final Context themedContext;
+    private GCVoteDialog() {
+        // prevents calls from subclass throw new UnsupportedOperationException();
+    }
 
-        if (Settings.isLightSkin() && VERSION.SDK_INT < VERSION_CODES.HONEYCOMB) {
-            themedContext = new ContextThemeWrapper(context, R.style.dark);
-        } else {
-            themedContext = context;
-        }
+    public static void show(final Activity context, @NonNull final Geocache cache, @Nullable final Runnable afterVoteSent) {
+        final View votingLayout = View.inflate(context, R.layout.gcvote_dialog, null);
 
-        final View votingLayout = View.inflate(themedContext, R.layout.gcvote_dialog, null);
-
-        final AlertDialog.Builder builder = new AlertDialog.Builder(themedContext);
+        final AlertDialog.Builder builder = new AlertDialog.Builder(context);
         builder.setView(votingLayout);
         builder.setPositiveButton(R.string.cache_menu_vote, new OnClickListener() {
 
@@ -75,8 +68,8 @@ public class GCVoteDialog {
         dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(GCVote.isValidRating(cache.getMyVote()));
     }
 
-    private static void vote(final Geocache cache, final float rating, final @Nullable Runnable afterVoteSent) {
-        RxUtils.andThenOnUi(RxUtils.networkScheduler, new Func0<Boolean>() {
+    private static void vote(@NonNull final Geocache cache, final float rating, @Nullable final Runnable afterVoteSent) {
+        AndroidRxUtils.andThenOnUi(AndroidRxUtils.networkScheduler, new Callable<Boolean>() {
             @Override
             public Boolean call() {
                 try {
@@ -96,10 +89,10 @@ public class GCVoteDialog {
 
                 return false;
             }
-        }, new Action1<Boolean>() {
+        }, new Consumer<Boolean>() {
             @Override
-            public void call(final Boolean status) {
-                final CgeoApplication context = CgeoApplication.getInstance();
+            public void accept(final Boolean status) {
+                final Application context = CgeoApplication.getInstance();
                 final String text = context.getString(status ? R.string.gcvote_sent : R.string.err_gcvote_send_rating);
                 Toast.makeText(context, text, Toast.LENGTH_SHORT).show();
                 if (afterVoteSent != null) {

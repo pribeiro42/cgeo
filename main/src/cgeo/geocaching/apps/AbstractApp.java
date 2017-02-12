@@ -1,19 +1,20 @@
 package cgeo.geocaching.apps;
 
 import cgeo.geocaching.CgeoApplication;
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.utils.ProcessUtils;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import android.content.Intent;
+import android.support.annotation.StringRes;
 
 public abstract class AbstractApp implements App {
 
     @Nullable private final String packageName;
-    @Nullable private final String intent;
+    @Nullable protected final String intent;
     @NonNull
     private final String name;
 
@@ -56,12 +57,12 @@ public abstract class AbstractApp implements App {
         return name;
     }
 
-    protected static String getString(final int ressourceId) {
-        return CgeoApplication.getInstance().getString(ressourceId);
+    protected static String getString(@StringRes final int resourceId) {
+        return CgeoApplication.getInstance().getString(resourceId);
     }
 
     @Override
-    public boolean isEnabled(final @NonNull Geocache cache) {
+    public boolean isEnabled(@NonNull final Geocache cache) {
         return true;
     }
 }

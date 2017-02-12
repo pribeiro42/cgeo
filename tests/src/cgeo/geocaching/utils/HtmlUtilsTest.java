@@ -1,10 +1,10 @@
 package cgeo.geocaching.utils;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import junit.framework.TestCase;
 
 import org.apache.commons.lang3.StringUtils;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class HtmlUtilsTest extends TestCase {
 
@@ -16,8 +16,9 @@ public class HtmlUtilsTest extends TestCase {
     }
 
     public static void testRemoveExtraParagraph() {
-        assertThat(HtmlUtils.removeExtraParagraph("<p></p>")).isEqualTo("");
-        assertThat(HtmlUtils.removeExtraParagraph("<p>Test</p>")).isEqualTo("Test");
-        assertThat(HtmlUtils.removeExtraParagraph("<p>1</p><p>2</p>")).isEqualTo("<p>1</p><p>2</p>");
+        assertThat(HtmlUtils.removeExtraTags("<p></p>")).isEmpty();
+        assertThat(HtmlUtils.removeExtraTags("<p>Test</p>")).isEqualTo("Test");
+        assertThat(HtmlUtils.removeExtraTags("<p>1</p><p>2</p>")).isEqualTo("<p>1</p><p>2</p>");
+        assertThat(HtmlUtils.removeExtraTags("<p><span>content</span></p>")).isEqualTo("content");
     }
 }

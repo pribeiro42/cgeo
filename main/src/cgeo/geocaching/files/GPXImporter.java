@@ -4,12 +4,8 @@ import cgeo.geocaching.R;
 import cgeo.geocaching.activity.ActivityMixin;
 import cgeo.geocaching.activity.Progress;
 import cgeo.geocaching.ui.dialog.Dialogs;
-import cgeo.geocaching.utils.CancellableHandler;
+import cgeo.geocaching.utils.DisposableHandler;
 import cgeo.geocaching.utils.Log;
-
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
@@ -19,10 +15,14 @@ import android.content.res.Resources;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.NonNull;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+
+import org.apache.commons.lang3.StringUtils;
+import android.support.annotation.Nullable;
 
 public class GPXImporter {
     static final int IMPORT_STEP_START = 0;
@@ -81,78 +81,80 @@ public class GPXImporter {
      * @param uri
      *            URI of the file to import
      */
-    public void importGPX(final Uri uri, final @Nullable String mimeType, final @Nullable String pathName) {
+    public void importGPX(final Uri uri, @Nullable final String mimeType, @Nullable final String pathName) {
         final ContentResolver contentResolver = fromActivity.getContentResolver();
 
         Log.i("importGPX: " + uri + ", mimetype=" + mimeType);
-		@NonNull
-		FileType fileType = new FileTypeDetector(uri, contentResolver)
-				.getFileType();
 
-		if (fileType == FileType.UNKNOWN) {
-			fileType = getFileTypeFromPathName(pathName);
-		}
-		if (fileType == FileType.UNKNOWN) {
-			fileType = getFileTypeFromMimeType(mimeType);
-		}
+        FileType fileType = new FileTypeDetector(uri, contentResolver)
+                .getFileType();
+
+        if (fileType == FileType.UNKNOWN) {
+            fileType = getFileTypeFromPathName(pathName);
+        }
+        if (fileType == FileType.UNKNOWN) {
+            fileType = getFileTypeFromMimeType(mimeType);
+        }
         if (fileType == FileType.UNKNOWN && uri != null) {
             fileType = getFileTypeFromPathName(uri.toString());
         }
 
-		final AbstractImportThread importer = getImporterFromFileType(uri, contentResolver,
-				fileType);
+        final AbstractImportThread importer = getImporterFromFileType(uri, contentResolver,
+                fileType);
 
-		if (importer != null) {
-			importer.start();
-		} else {
-			importFinished();
-		}
-	}
+        if (importer != null) {
+            importer.start();
+        } else {
+            importFinished();
+        }
+    }
 
-	private static @NonNull FileType getFileTypeFromPathName(
-			final String pathName) {
+    @NonNull
+    private static FileType getFileTypeFromPathName(
+            final String pathName) {
         if (StringUtils.endsWithIgnoreCase(pathName, GPX_FILE_EXTENSION)) {
-        		return FileType.GPX;
+                return FileType.GPX;
         }
 
-	if (StringUtils.endsWithIgnoreCase(pathName, LOC_FILE_EXTENSION)) {
-		return FileType.LOC;
-	}
-		return FileType.UNKNOWN;
-	}
+    if (StringUtils.endsWithIgnoreCase(pathName, LOC_FILE_EXTENSION)) {
+        return FileType.LOC;
+    }
+        return FileType.UNKNOWN;
+    }
 
-	private static @NonNull FileType getFileTypeFromMimeType(
-			final String mimeType) {
+    @NonNull
+    private static FileType getFileTypeFromMimeType(
+            final String mimeType) {
         if (GPX_MIME_TYPES.contains(mimeType)) {
-			return FileType.GPX;
+            return FileType.GPX;
         }
         if (ZIP_MIME_TYPES.contains(mimeType)) {
-			return FileType.ZIP;
-		}
+            return FileType.ZIP;
+        }
         return FileType.UNKNOWN;
-	}
+    }
 
-	private AbstractImportThread getImporterFromFileType(final Uri uri,
-			final ContentResolver contentResolver, final FileType fileType) {
-		switch (fileType) {
-		case ZIP:
-			return new ImportGpxZipAttachmentThread(uri, contentResolver,
-					listId, importStepHandler, progressHandler);
-		case GPX:
-			return new ImportGpxAttachmentThread(uri, contentResolver, listId,
-					importStepHandler, progressHandler);
-		case LOC:
-			return new ImportLocAttachmentThread(uri, contentResolver, listId,
-					importStepHandler, progressHandler);
-		default:
-			return null;
-		}
-	}
+    private AbstractImportThread getImporterFromFileType(final Uri uri,
+            final ContentResolver contentResolver, final FileType fileType) {
+        switch (fileType) {
+        case ZIP:
+            return new ImportGpxZipAttachmentThread(uri, contentResolver,
+                    listId, importStepHandler, progressHandler);
+        case GPX:
+            return new ImportGpxAttachmentThread(uri, contentResolver, listId,
+                    importStepHandler, progressHandler);
+        case LOC:
+            return new ImportLocAttachmentThread(uri, contentResolver, listId,
+                    importStepHandler, progressHandler);
+        default:
+            return null;
+        }
+    }
 
-	/**
-	 * Import GPX provided via intent of activity that instantiated this
-	 * GPXImporter.
-	 */
+    /**
+     * Import GPX provided via intent of activity that instantiated this
+     * GPXImporter.
+     */
     public void importGPX() {
         final Intent intent = fromActivity.getIntent();
         final Uri uri = intent.getData();
@@ -160,47 +162,47 @@ public class GPXImporter {
         importGPX(uri, mimeType, null);
     }
 
-    final private CancellableHandler progressHandler = new CancellableHandler() {
+    private final DisposableHandler progressHandler = new DisposableHandler() {
         @Override
         public void handleRegularMessage(final Message msg) {
             progress.setProgress(msg.arg1);
         }
     };
 
-    final private Handler importStepHandler = new Handler() {
+    private final Handler importStepHandler = new Handler() {
         @Override
         public void handleMessage(final Message msg) {
             switch (msg.what) {
                 case IMPORT_STEP_START:
                     final Message cancelMessage = importStepHandler.obtainMessage(IMPORT_STEP_CANCEL);
-                    progress.show(fromActivity, res.getString(R.string.gpx_import_title_reading_file), res.getString(R.string.gpx_import_loading_caches), ProgressDialog.STYLE_HORIZONTAL, cancelMessage);
+                    progress.show(fromActivity, res.getString(R.string.gpx_import_title_reading_file), res.getString(R.string.gpx_import_loading_caches_with_filename, msg.obj), ProgressDialog.STYLE_HORIZONTAL, cancelMessage);
                     break;
 
                 case IMPORT_STEP_READ_FILE:
                 case IMPORT_STEP_READ_WPT_FILE:
-                    progress.setMessage(res.getString(msg.arg1));
+                    progress.setMessage(res.getString(msg.arg1, msg.obj));
                     progress.setMaxProgressAndReset(msg.arg2);
                     break;
 
                 case IMPORT_STEP_STORE_STATIC_MAPS:
                     progress.dismiss();
-                    final Message skipMessage = importStepHandler.obtainMessage(IMPORT_STEP_STATIC_MAPS_SKIPPED, msg.arg2, 0);
+                    final Message skipMessage = importStepHandler.obtainMessage(IMPORT_STEP_STATIC_MAPS_SKIPPED, msg.arg2, 0, msg.obj);
                     progress.show(fromActivity, res.getString(R.string.gpx_import_title_static_maps), res.getString(R.string.gpx_import_store_static_maps), ProgressDialog.STYLE_HORIZONTAL, skipMessage);
                     progress.setMaxProgressAndReset(msg.arg2);
                     break;
 
                 case IMPORT_STEP_STATIC_MAPS_SKIPPED:
                     progress.dismiss();
-                    progressHandler.cancel();
+                    progressHandler.dispose();
                     final StringBuilder bufferSkipped = new StringBuilder(20);
-                    bufferSkipped.append(res.getString(R.string.gpx_import_static_maps_skipped)).append(", ").append(msg.arg1).append(' ').append(res.getString(R.string.gpx_import_caches_imported));
+                    bufferSkipped.append(res.getString(R.string.gpx_import_static_maps_skipped)).append(", ").append(res.getString(R.string.gpx_import_caches_imported_with_filename, msg.arg1, msg.obj));
                     Dialogs.message(fromActivity, R.string.gpx_import_title_caches_imported, bufferSkipped.toString());
                     importFinished();
                     break;
 
                 case IMPORT_STEP_FINISHED:
                     progress.dismiss();
-                    Dialogs.message(fromActivity, R.string.gpx_import_title_caches_imported, msg.arg1 + " " + res.getString(R.string.gpx_import_caches_imported));
+                    Dialogs.message(fromActivity, R.string.gpx_import_title_caches_imported, res.getString(R.string.gpx_import_caches_imported_with_filename, msg.arg1, msg.obj));
                     importFinished();
                     break;
 
@@ -212,12 +214,12 @@ public class GPXImporter {
 
                 case IMPORT_STEP_CANCEL:
                     progress.dismiss();
-                    progressHandler.cancel();
+                    progressHandler.dispose();
                     break;
 
                 case IMPORT_STEP_CANCELED:
-                    final StringBuilder bufferCanceled = new StringBuilder(20);
-                    bufferCanceled.append(res.getString(R.string.gpx_import_canceled));
+                    final StringBuilder bufferCanceled = new StringBuilder(30);
+                    bufferCanceled.append(res.getString(R.string.gpx_import_canceled_with_filename, msg.obj));
                     ActivityMixin.showShortToast(fromActivity, bufferCanceled.toString());
                     importFinished();
                     break;
@@ -237,12 +239,12 @@ public class GPXImporter {
         if (gpxfile == null || !gpxfile.canRead()) {
             return null;
         }
-        final String gpxFileName = gpxfile.getName();
         final File dir = gpxfile.getParentFile();
         final String[] filenameList = dir.list();
         if (filenameList == null) {
             return null;
         }
+        final String gpxFileName = gpxfile.getName();
         for (final String filename : filenameList) {
             if (!StringUtils.containsIgnoreCase(filename, WAYPOINTS_FILE_SUFFIX)) {
                 continue;

@@ -1,10 +1,10 @@
 package cgeo.geocaching.utils;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import cgeo.geocaching.Geocache;
-
 import junit.framework.TestCase;
+
+import cgeo.geocaching.models.Geocache;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CheckerUtilsTest extends TestCase {
 

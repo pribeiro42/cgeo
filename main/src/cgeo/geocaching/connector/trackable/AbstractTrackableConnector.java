@@ -1,18 +1,18 @@
 package cgeo.geocaching.connector.trackable;
 
-import cgeo.geocaching.AbstractLoggingActivity;
-import cgeo.geocaching.Trackable;
-import cgeo.geocaching.TrackableLog;
+import cgeo.geocaching.models.Trackable;
 import cgeo.geocaching.connector.AbstractConnector;
 import cgeo.geocaching.connector.UserAction;
+import cgeo.geocaching.log.AbstractLoggingActivity;
+import cgeo.geocaching.log.TrackableLog;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-
-import rx.Observable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+
+import io.reactivex.Observable;
 
 public abstract class AbstractTrackableConnector implements TrackableConnector {
 
@@ -26,13 +26,12 @@ public abstract class AbstractTrackableConnector implements TrackableConnector {
         return false;
     }
 
-
     @Override
     public boolean canHandleTrackable(@Nullable final String geocode, @Nullable final TrackableBrand brand) {
-        if (brand != null && brand != TrackableBrand.UNKNOWN) {
-            return brand == getBrand() && canHandleTrackable(geocode);
+        if (brand == null || brand == TrackableBrand.UNKNOWN) {
+            return canHandleTrackable(geocode);
         }
-        return canHandleTrackable(geocode);
+        return brand == getBrand() && canHandleTrackable(geocode);
     }
 
     @Override
@@ -47,6 +46,12 @@ public abstract class AbstractTrackableConnector implements TrackableConnector {
     }
 
     @Override
+    @Nullable
+    public String getTrackableTrackingCodeFromUrl(@NonNull final String url) {
+        return null;
+    }
+
+    @Override
     @NonNull
     public List<UserAction> getUserActions() {
         return AbstractConnector.getDefaultUserActions();
@@ -56,6 +61,24 @@ public abstract class AbstractTrackableConnector implements TrackableConnector {
     @NonNull
     public String getUrl(@NonNull final Trackable trackable) {
         throw new IllegalStateException("this trackable does not have a corresponding URL");
+    }
+
+    @Override
+    @NonNull
+    public String getHostUrl() {
+        return "https://" + getHost();
+    }
+
+    @Override
+    @NonNull
+    public String getTestUrl() {
+        return getHostUrl();
+    }
+
+    @Override
+    @Nullable
+    public String getProxyUrl() {
+        return null;
     }
 
     @Override

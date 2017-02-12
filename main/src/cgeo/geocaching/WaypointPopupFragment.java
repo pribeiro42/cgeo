@@ -1,15 +1,5 @@
 package cgeo.geocaching;
 
-import cgeo.geocaching.apps.navi.NavigationAppFactory;
-import cgeo.geocaching.compatibility.Compatibility;
-import cgeo.geocaching.location.Geopoint;
-import cgeo.geocaching.location.Units;
-import cgeo.geocaching.sensors.GeoData;
-import cgeo.geocaching.ui.CacheDetailsCreator;
-import cgeo.geocaching.utils.Log;
-
-import org.apache.commons.lang3.StringUtils;
-
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.view.LayoutInflater;
@@ -20,14 +10,26 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import butterknife.Bind;
+import org.apache.commons.lang3.StringUtils;
+
+import butterknife.BindView;
 import butterknife.ButterKnife;
+import cgeo.geocaching.apps.navi.NavigationAppFactory;
+import cgeo.geocaching.compatibility.Compatibility;
+import cgeo.geocaching.location.Geopoint;
+import cgeo.geocaching.location.Units;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Waypoint;
+import cgeo.geocaching.sensors.GeoData;
+import cgeo.geocaching.storage.DataStore;
+import cgeo.geocaching.ui.CacheDetailsCreator;
+import cgeo.geocaching.utils.Log;
 
 public class WaypointPopupFragment extends AbstractDialogFragment {
-    @Bind(R.id.actionbar_title) protected TextView actionBarTitle;
-    @Bind(R.id.waypoint_details_list) protected LinearLayout waypointDetailsLayout;
-    @Bind(R.id.edit) protected Button buttonEdit;
-    @Bind(R.id.details_list) protected LinearLayout cacheDetailsLayout;
+    @BindView(R.id.actionbar_title) protected TextView actionBarTitle;
+    @BindView(R.id.waypoint_details_list) protected LinearLayout waypointDetailsLayout;
+    @BindView(R.id.edit) protected Button buttonEdit;
+    @BindView(R.id.details_list) protected LinearLayout cacheDetailsLayout;
 
     private int waypointId = 0;
     private Waypoint waypoint = null;
@@ -35,9 +37,9 @@ public class WaypointPopupFragment extends AbstractDialogFragment {
 
     @Override
     public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
-        final View  v = inflater.inflate(R.layout.waypoint_popup, container, false);
+        final View v = inflater.inflate(R.layout.waypoint_popup, container, false);
         initCustomActionBar(v);
-        ButterKnife.bind(this,v);
+        ButterKnife.bind(this, v);
 
         return v;
     }
@@ -87,8 +89,7 @@ public class WaypointPopupFragment extends AbstractDialogFragment {
 
             //Waypoint geocode
             details.add(R.string.cache_geocode, waypoint.getPrefix() + waypoint.getGeocode().substring(2));
-            details.addDistance(waypoint, waypointDistance);
-            waypointDistance = details.getValueView();
+            waypointDistance = details.addDistance(waypoint, waypointDistance);
             details.add(R.string.waypoint_note, waypoint.getNote());
 
             buttonEdit.setOnClickListener(new OnClickListener() {
@@ -136,11 +137,11 @@ public class WaypointPopupFragment extends AbstractDialogFragment {
     }
 
     @Override
-    protected Geopoint getCoordinates() {
+    protected TargetInfo getTargetInfo() {
         if (waypoint == null) {
             return null;
         }
-        return waypoint.getCoords();
+        return new TargetInfo(waypoint.getCoords(), cache.getGeocode());
     }
 
     public static DialogFragment newInstance(final String geocode, final int waypointId) {
@@ -151,7 +152,7 @@ public class WaypointPopupFragment extends AbstractDialogFragment {
 
         final DialogFragment f = new WaypointPopupFragment();
         f.setArguments(args);
-        f.setStyle(DialogFragment.STYLE_NO_TITLE,0);
+        f.setStyle(DialogFragment.STYLE_NO_TITLE, 0);
 
         return f;
     }

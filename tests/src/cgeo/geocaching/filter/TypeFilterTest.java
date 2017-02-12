@@ -1,14 +1,15 @@
 package cgeo.geocaching.filter;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import cgeo.CGeoTestCase;
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.enumerations.CacheType;
+import junit.framework.TestCase;
 
 import java.util.ArrayList;
 
-public class TypeFilterTest extends CGeoTestCase {
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.enumerations.CacheType;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+public class TypeFilterTest extends TestCase {
 
     private TypeFilter traditionalFilter;
     private Geocache traditional;
@@ -32,7 +33,7 @@ public class TypeFilterTest extends CGeoTestCase {
     }
 
     public void testFilter() {
-        final ArrayList<Geocache> list = new ArrayList<Geocache>();
+        final ArrayList<Geocache> list = new ArrayList<>();
         traditionalFilter.filter(list);
         assertThat(list).isEmpty();
 

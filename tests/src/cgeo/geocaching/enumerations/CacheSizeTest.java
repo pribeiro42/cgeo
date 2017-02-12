@@ -2,11 +2,11 @@ package cgeo.geocaching.enumerations;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import android.test.AndroidTestCase;
-
 import java.util.Locale;
 
-public class CacheSizeTest extends AndroidTestCase {
+import junit.framework.TestCase;
+
+public class CacheSizeTest extends TestCase {
 
     public static void testOrder() {
         assertThat(CacheSize.MICRO.comparable).isLessThan(CacheSize.SMALL.comparable);
@@ -34,4 +34,10 @@ public class CacheSizeTest extends AndroidTestCase {
         assertThat(CacheSize.getById("3")).isEqualTo(CacheSize.REGULAR);
         assertThat(CacheSize.getById("-1")).isEqualTo(CacheSize.UNKNOWN);
     }
+
+    public static void testGetByIdVeryLarge() throws Exception {
+        assertThat(CacheSize.getById("Very large")).isEqualTo(CacheSize.VERY_LARGE);
+        assertThat(CacheSize.getById("very_large")).as("size from website icon").isEqualTo(CacheSize.VERY_LARGE);
+    }
+
 }

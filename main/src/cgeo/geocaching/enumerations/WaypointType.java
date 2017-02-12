@@ -3,27 +3,32 @@ package cgeo.geocaching.enumerations;
 import cgeo.geocaching.CgeoApplication;
 import cgeo.geocaching.R;
 
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Enum listing waypoint types
  */
 public enum WaypointType {
-    FINAL("flag", "Final Location", R.string.wp_final, R.drawable.waypoint_flag),
-    OWN("own", "Own", R.string.wp_waypoint, R.drawable.waypoint_waypoint),
-    PARKING("pkg", "Parking Area", R.string.wp_pkg, R.drawable.waypoint_pkg),
-    PUZZLE("puzzle", "Virtual Stage", R.string.wp_puzzle, R.drawable.waypoint_puzzle),
-    STAGE("stage", "Physical Stage", R.string.wp_stage, R.drawable.waypoint_stage),
-    TRAILHEAD("trailhead", "Trailhead", R.string.wp_trailhead, R.drawable.waypoint_trailhead),
-    WAYPOINT("waypoint", "Reference Point", R.string.wp_waypoint, R.drawable.waypoint_waypoint),
-    ORIGINAL("original", "Original Coordinates", R.string.wp_original, R.drawable.waypoint_waypoint);
+    FINAL("flag", "Final Location", R.string.wp_final, R.drawable.waypoint_flag, 3),
+    OWN("own", "Own", R.string.wp_waypoint, R.drawable.waypoint_waypoint, 5),
+    PARKING("pkg", "Parking Area", R.string.wp_pkg, R.drawable.waypoint_pkg, -1),
+    PUZZLE("puzzle", "Virtual Stage", R.string.wp_puzzle, R.drawable.waypoint_puzzle, 2),
+    STAGE("stage", "Physical Stage", R.string.wp_stage, R.drawable.waypoint_stage, 2),
+    TRAILHEAD("trailhead", "Trailhead", R.string.wp_trailhead, R.drawable.waypoint_trailhead, 1),
+    WAYPOINT("waypoint", "Reference Point", R.string.wp_waypoint, R.drawable.waypoint_waypoint, 2),
+    ORIGINAL("original", "Original Coordinates", R.string.wp_original, R.drawable.waypoint_waypoint, 4);
 
     @NonNull
     public final String id;
@@ -32,41 +37,49 @@ public enum WaypointType {
     public final int stringId;
     public final int markerId;
 
-    WaypointType(@NonNull final String id, @NonNull final String gpx, final int stringId, final int markerId) {
+    public final int order;
+
+    WaypointType(@NonNull final String id, @NonNull final String gpx, final int stringId, final int markerId, final int order) {
         this.id = id;
         this.gpx = gpx;
         this.stringId = stringId;
         this.markerId = markerId;
+        this.order = order;
     }
 
     /**
      * inverse lookup of waypoint IDs<br/>
-     * non public so that <code>null</code> handling can be handled centrally in the enum type itself
+     * non public so that {@code null} handling can be handled centrally in the enum type itself
      */
     private static final Map<String, WaypointType> FIND_BY_ID = new HashMap<>();
-    private static final Set<WaypointType> ALL_TYPES_EXCEPT_OWN_AND_ORIGINAL_TMP = new HashSet<>();
     static {
         for (final WaypointType wt : values()) {
             FIND_BY_ID.put(wt.id, wt);
-            if (wt != OWN && wt != ORIGINAL) {
-                ALL_TYPES_EXCEPT_OWN_AND_ORIGINAL_TMP.add(wt);
-            }
         }
     }
     @NonNull
-    public static final Set<WaypointType> ALL_TYPES_EXCEPT_OWN_AND_ORIGINAL = Collections.unmodifiableSet(ALL_TYPES_EXCEPT_OWN_AND_ORIGINAL_TMP);
+    public static final List<WaypointType> ALL_TYPES_EXCEPT_OWN_AND_ORIGINAL = orderedWaypointTypes();
+
+    private static List<WaypointType> orderedWaypointTypes() {
+        // enforce an order for these types
+        final Set<WaypointType> waypointTypes = new LinkedHashSet<>();
+        waypointTypes.addAll(Arrays.asList(PARKING, TRAILHEAD, PUZZLE, STAGE, FINAL));
+        // then add all remaining except "internal" types
+        waypointTypes.addAll(EnumSet.complementOf(EnumSet.of(OWN, ORIGINAL)));
+        return Collections.unmodifiableList(new ArrayList<>(waypointTypes));
+    }
 
     /**
      * inverse lookup of waypoint IDs<br/>
-     * here the <code>null</code> handling shall be done
+     * here the {@code null} handling shall be done
      */
     @NonNull
     public static WaypointType findById(final String id) {
-        if (null == id) {
+        if (id == null) {
             return WAYPOINT;
         }
         final WaypointType waypointType = FIND_BY_ID.get(id);
-        if (null == waypointType) {
+        if (waypointType == null) {
             return WAYPOINT;
         }
         return waypointType;
@@ -74,7 +87,7 @@ public enum WaypointType {
 
     @NonNull
     public final String getL10n() {
-        return CgeoApplication.getInstance().getBaseContext().getResources().getString(stringId);
+        return CgeoApplication.getInstance().getBaseContext().getString(stringId);
     }
 
     @Override
@@ -83,7 +96,7 @@ public enum WaypointType {
     }
 
     public boolean applyDistanceRule() {
-        return (this == FINAL || this == STAGE);
+        return this == FINAL || this == STAGE;
     }
 
     public static WaypointType fromGPXString(@NonNull final String sym) {
@@ -108,10 +121,8 @@ public enum WaypointType {
         // this is not fully correct, but lets also look for localized waypoint types
         for (final WaypointType waypointType : WaypointType.ALL_TYPES_EXCEPT_OWN_AND_ORIGINAL) {
             final String localized = waypointType.getL10n();
-            if (StringUtils.isNotEmpty(localized)) {
-                if (localized.equalsIgnoreCase(sym)) {
-                    return waypointType;
-                }
+            if (StringUtils.isNotEmpty(localized) && localized.equalsIgnoreCase(sym)) {
+                return waypointType;
             }
         }
         return WaypointType.WAYPOINT;

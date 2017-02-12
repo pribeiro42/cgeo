@@ -1,13 +1,8 @@
 package cgeo.geocaching;
 
 import cgeo.geocaching.activity.AbstractActionBarActivity;
-import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.models.Image;
 import cgeo.geocaching.ui.ImagesList;
-import cgeo.geocaching.ui.ImagesList.ImageType;
-
-import org.apache.commons.collections4.CollectionUtils;
-
-import rx.Subscription;
 
 import android.content.Context;
 import android.content.Intent;
@@ -20,13 +15,14 @@ import android.view.View;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.reactivex.disposables.CompositeDisposable;
+import org.apache.commons.collections4.CollectionUtils;
+
 public class ImagesActivity extends AbstractActionBarActivity {
 
-    private boolean offline;
     private List<Image> imageNames;
-    private ImageType imgType = ImageType.SpoilerImages;
     private ImagesList imagesList;
-    private Subscription subscription;
+    private final CompositeDisposable createDisposables = new CompositeDisposable();
 
     @Override
     public void onCreate(final Bundle savedInstanceState) {
@@ -38,7 +34,6 @@ public class ImagesActivity extends AbstractActionBarActivity {
         String geocode = null;
         if (extras != null) {
             geocode = extras.getString(Intents.EXTRA_GEOCODE);
-            imgType = (ImageType) extras.getSerializable(Intents.EXTRA_TYPE);
         }
 
         if (extras == null || geocode == null) {
@@ -50,55 +45,39 @@ public class ImagesActivity extends AbstractActionBarActivity {
         // init
         setTheme();
         setContentView(R.layout.images_activity);
-        setTitle(res.getString(imgType.getTitle()));
 
-        imagesList = new ImagesList(this, geocode);
+        setCacheTitleBar(geocode);
+
+        imagesList = new ImagesList(this, geocode, null);
 
         imageNames = extras.getParcelableArrayList(Intents.EXTRA_IMAGES);
         if (CollectionUtils.isEmpty(imageNames)) {
             showToast(res.getString(R.string.warn_load_images));
             finish();
-            return;
         }
-
-        offline = DataStore.isOffline(geocode, null) && (imgType == ImageType.SpoilerImages
-                || Settings.isStoreLogImages());
-
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        subscription = imagesList.loadImages(findViewById(R.id.spoiler_list), imageNames, offline);
+        createDisposables.add(imagesList.loadImages(findViewById(R.id.spoiler_list), imageNames));
     }
 
     @Override
     public void onStop() {
         // Reclaim native memory faster than the finalizers would
-        subscription.unsubscribe();
+        createDisposables.clear();
         super.onStop();
     }
 
-    public static void startActivityLogImages(final Context fromActivity, final String geocode, final List<Image> logImages) {
-        startActivity(fromActivity, geocode, logImages, ImageType.LogImages);
-    }
-
-    @SuppressWarnings("deprecation")
-    private static void startActivity(final Context fromActivity, final String geocode, final List<Image> logImages, final ImageType imageType) {
-        final Intent logImgIntent = new Intent(fromActivity, ImagesActivity.class);
-        // if resuming our app within this activity, finish it and return to the cache activity
-        logImgIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET)
-                .putExtra(Intents.EXTRA_GEOCODE, geocode)
-                .putExtra(Intents.EXTRA_TYPE, imageType);
+    public static void startActivity(final Context fromActivity, final String geocode, final List<Image> logImages) {
+        final Intent logImgIntent = new Intent(fromActivity, ImagesActivity.class)
+                .putExtra(Intents.EXTRA_GEOCODE, geocode);
 
         // avoid forcing the array list as parameter type
         final ArrayList<Image> arrayList = new ArrayList<>(logImages);
         logImgIntent.putParcelableArrayListExtra(Intents.EXTRA_IMAGES, arrayList);
         fromActivity.startActivity(logImgIntent);
-    }
-
-    public static void startActivitySpoilerImages(final Context fromActivity, final String geocode, final List<Image> spoilers) {
-        startActivity(fromActivity, geocode, spoilers, ImageType.SpoilerImages);
     }
 
     @Override

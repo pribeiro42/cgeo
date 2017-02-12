@@ -1,14 +1,14 @@
 package cgeo.geocaching.apps.navi;
 
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.R;
-import cgeo.geocaching.Waypoint;
+import cgeo.geocaching.models.Waypoint;
 import cgeo.geocaching.location.Geopoint;
 
 import com.mapswithme.maps.api.MWMPoint;
 import com.mapswithme.maps.api.MapsWithMeApi;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.app.Activity;
 
@@ -22,12 +22,12 @@ class MapsMeApp extends AbstractPointNavigationApp {
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Geopoint coords) {
+    public void navigate(@NonNull final Activity activity, @NonNull final Geopoint coords) {
         navigate(activity, coords, getString(R.string.unknown));
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Geocache cache) {
+    public void navigate(@NonNull final Activity activity, @NonNull final Geocache cache) {
         final List<Waypoint> waypoints = cache.getWaypoints();
         if (waypoints.isEmpty()) {
             navigate(activity, cache.getCoords(), cache.getName());
@@ -54,7 +54,7 @@ class MapsMeApp extends AbstractPointNavigationApp {
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Waypoint waypoint) {
+    public void navigate(@NonNull final Activity activity, @NonNull final Waypoint waypoint) {
         navigate(activity, waypoint.getCoords(), waypoint.getName());
     }
 

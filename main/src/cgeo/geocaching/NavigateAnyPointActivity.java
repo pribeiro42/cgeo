@@ -6,25 +6,25 @@ import cgeo.geocaching.apps.navi.NavigationAppFactory;
 import cgeo.geocaching.location.DistanceParser;
 import cgeo.geocaching.location.Geopoint;
 import cgeo.geocaching.location.GeopointFormatter;
+import cgeo.geocaching.models.Destination;
 import cgeo.geocaching.sensors.GeoData;
 import cgeo.geocaching.sensors.GeoDirHandler;
 import cgeo.geocaching.sensors.Sensors;
 import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.storage.DataStore;
 import cgeo.geocaching.ui.AbstractViewHolder;
 import cgeo.geocaching.ui.NavigationActionProvider;
 import cgeo.geocaching.ui.dialog.CoordinatesInputDialog;
 import cgeo.geocaching.ui.dialog.Dialogs;
+import cgeo.geocaching.utils.AndroidRxUtils;
 import cgeo.geocaching.utils.Formatter;
 import cgeo.geocaching.utils.Log;
-import cgeo.geocaching.utils.RxUtils;
-
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.Nullable;
 
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v4.view.MenuItemCompat;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -46,22 +46,22 @@ import android.widget.TextView;
 
 import java.util.List;
 
-import butterknife.Bind;
+import butterknife.BindView;
 import butterknife.ButterKnife;
-import rx.functions.Action0;
-import rx.schedulers.Schedulers;
+import io.reactivex.schedulers.Schedulers;
+import org.apache.commons.lang3.StringUtils;
 
 public class NavigateAnyPointActivity extends AbstractActionBarActivity implements CoordinatesInputDialog.CoordinateUpdate, INavigationSource {
 
-    @Bind(R.id.historyList) protected ListView historyListView;
+    @BindView(R.id.historyList) protected ListView historyListView;
 
     // list header fields are optional, due to being expanded later than the list itself
-    @Nullable @Bind(R.id.buttonLatitude) protected Button latButton;
-    @Nullable @Bind(R.id.buttonLongitude) protected Button lonButton;
-    @Nullable @Bind(R.id.distance) protected EditText distanceEditText;
-    @Nullable @Bind(R.id.distanceUnit) protected Spinner distanceUnitSelector;
-    @Nullable @Bind(R.id.current) protected Button buttonCurrent;
-    @Nullable @Bind(R.id.bearing) protected EditText bearingEditText;
+    @Nullable @BindView(R.id.buttonLatitude) protected Button latButton;
+    @Nullable @BindView(R.id.buttonLongitude) protected Button lonButton;
+    @Nullable @BindView(R.id.distance) protected EditText distanceEditText;
+    @Nullable @BindView(R.id.distanceUnit) protected Spinner distanceUnitSelector;
+    @Nullable @BindView(R.id.current) protected Button buttonCurrent;
+    @Nullable @BindView(R.id.bearing) protected EditText bearingEditText;
 
     private boolean changed = false;
     private List<Destination> historyOfSearchedLocations;
@@ -77,9 +77,9 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
     private String distanceUnit = StringUtils.EMPTY;
 
     protected static class ViewHolder extends AbstractViewHolder {
-        @Bind(R.id.simple_way_point_longitude) protected TextView longitude;
-        @Bind(R.id.simple_way_point_latitude) protected TextView latitude;
-        @Bind(R.id.date) protected TextView date;
+        @BindView(R.id.simple_way_point_longitude) protected TextView longitude;
+        @BindView(R.id.simple_way_point_latitude) protected TextView latitude;
+        @BindView(R.id.date) protected TextView date;
 
         public ViewHolder(final View rowView) {
             super(rowView);
@@ -89,7 +89,7 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
     private static class DestinationHistoryAdapter extends ArrayAdapter<Destination> {
         private LayoutInflater inflater = null;
 
-        public DestinationHistoryAdapter(final Context context,
+        DestinationHistoryAdapter(final Context context,
                 final List<Destination> objects) {
             super(context, 0, objects);
         }
@@ -102,8 +102,7 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
             if (rowView == null) {
                 rowView = getInflater().inflate(R.layout.simple_way_point, parent, false);
                 viewHolder = new ViewHolder(rowView);
-            }
-            else {
+            } else {
                 viewHolder = (ViewHolder) rowView.getTag();
             }
 
@@ -150,7 +149,7 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
             historyListView.addFooterView(getEmptyHistoryFooter(), null, false);
         }
 
-        historyListView.setAdapter(getDestionationHistoryAdapter());
+        historyListView.setAdapter(getDestinationHistoryAdapter());
         historyListView.setOnItemClickListener(new OnItemClickListener() {
 
             @Override
@@ -177,7 +176,7 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
     @Override
     public boolean onContextItemSelected(final MenuItem item) {
         final AdapterView.AdapterContextMenuInfo menuInfo = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
-        final int position = (null != menuInfo) ? menuInfo.position : contextMenuItemPosition;
+        final int position = menuInfo != null ? menuInfo.position : contextMenuItemPosition;
         final Object destination = historyListView.getItemAtPosition(position);
 
         switch (item.getItemId()) {
@@ -216,7 +215,7 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
         return historyFooter;
     }
 
-    private DestinationHistoryAdapter getDestionationHistoryAdapter() {
+    private DestinationHistoryAdapter getDestinationHistoryAdapter() {
         if (destinationHistoryAdapter == null) {
             destinationHistoryAdapter = new DestinationHistoryAdapter(this, getHistoryOfSearchedLocations());
         }
@@ -257,7 +256,7 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
 
         getButtonCurrent().setOnClickListener(new CurrentListener());
 
-        getDestionationHistoryAdapter().notifyDataSetChanged();
+        getDestinationHistoryAdapter().notifyDataSetChanged();
         disableSuggestions(getDistanceEditText());
 
         initializeDistanceUnitSelector();
@@ -285,9 +284,9 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
             if (getLatButton().getText().length() > 0 && getLonButton().getText().length() > 0) {
                 gp = new Geopoint(getLatButton().getText().toString() + " " + getLonButton().getText().toString());
             }
-            final CoordinatesInputDialog coordsDialog = CoordinatesInputDialog.getInstance(null, gp, Sensors.getInstance().currentGeo());
+            final CoordinatesInputDialog coordsDialog = CoordinatesInputDialog.getInstance(null, gp);
             coordsDialog.setCancelable(true);
-            coordsDialog.show(getSupportFragmentManager(),"wpedit_dialog");
+            coordsDialog.show(getSupportFragmentManager(), "wpedit_dialog");
         }
 
     }
@@ -387,15 +386,15 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
 
         if (!getHistoryOfSearchedLocations().contains(loc)) {
             getHistoryOfSearchedLocations().add(0, loc);
-            RxUtils.andThenOnUi(Schedulers.io(), new Action0() {
+            AndroidRxUtils.andThenOnUi(Schedulers.io(), new Runnable() {
                 @Override
-                public void call() {
+                public void run() {
                     // Save location
                     DataStore.saveSearchedDestination(loc);
                 }
-            }, new Action0() {
+            }, new Runnable() {
                 @Override
-                public void call() {
+                public void run() {
                     // Ensure to remove the footer
                     historyListView.removeFooterView(getEmptyHistoryFooter());
                     destinationHistoryAdapter.notifyDataSetChanged();
@@ -411,13 +410,11 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
             // Save
             DataStore.removeSearchedDestination(destination);
 
-            if (getHistoryOfSearchedLocations().isEmpty()) {
-                if (historyListView.getFooterViewsCount() == 0) {
-                    historyListView.addFooterView(getEmptyHistoryFooter());
-                }
+            if (getHistoryOfSearchedLocations().isEmpty() && historyListView.getFooterViewsCount() == 0) {
+                historyListView.addFooterView(getEmptyHistoryFooter());
             }
 
-            getDestionationHistoryAdapter().notifyDataSetChanged();
+            getDestinationHistoryAdapter().notifyDataSetChanged();
 
             showToast(res.getString(R.string.search_remove_destination));
         }
@@ -434,7 +431,7 @@ public class NavigateAnyPointActivity extends AbstractActionBarActivity implemen
                 historyListView.addFooterView(getEmptyHistoryFooter());
             }
 
-            getDestionationHistoryAdapter().notifyDataSetChanged();
+            getDestinationHistoryAdapter().notifyDataSetChanged();
 
             showToast(res.getString(R.string.search_history_cleared));
         }

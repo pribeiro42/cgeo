@@ -2,15 +2,15 @@ package cgeo.geocaching.files;
 
 import cgeo.geocaching.Intents;
 import cgeo.geocaching.R;
-import cgeo.geocaching.activity.AbstractListActivity;
+import cgeo.geocaching.activity.AbstractActionBarActivity;
 import cgeo.geocaching.list.StoredList;
+import cgeo.geocaching.storage.LocalStorage;
+import cgeo.geocaching.ui.dialog.Dialogs;
+import cgeo.geocaching.ui.recyclerview.RecyclerViewProvider;
 import cgeo.geocaching.utils.EnvironmentUtils;
 import cgeo.geocaching.utils.FileUtils;
 import cgeo.geocaching.utils.Log;
-
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
+import cgeo.geocaching.utils.TextUtils;
 
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
@@ -18,7 +18,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-import android.widget.ArrayAdapter;
+import android.support.annotation.NonNull;
+import android.support.v7.widget.RecyclerView;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -26,7 +27,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-public abstract class AbstractFileListActivity<T extends ArrayAdapter<File>> extends AbstractListActivity {
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+
+public abstract class AbstractFileListActivity<T extends RecyclerView.Adapter<? extends RecyclerView.ViewHolder>> extends AbstractActionBarActivity {
     private static final int MSG_SEARCH_WHOLE_SD_CARD = 1;
 
     private final List<File> files = new ArrayList<>();
@@ -36,7 +40,7 @@ public abstract class AbstractFileListActivity<T extends ArrayAdapter<File>> ext
     protected int listId = StoredList.STANDARD_LIST_ID;
     private String[] extensions;
 
-    final private Handler changeWaitDialogHandler = new Handler() {
+    private final Handler changeWaitDialogHandler = new Handler() {
         private String searchInfo;
 
         @Override
@@ -61,13 +65,11 @@ public abstract class AbstractFileListActivity<T extends ArrayAdapter<File>> ext
         }
     };
 
-    final private Handler loadFilesHandler = new Handler() {
+    private final Handler loadFilesHandler = new Handler() {
 
         @Override
         public void handleMessage(final Message msg) {
-            if (waitDialog != null) {
-                waitDialog.dismiss();
-            }
+            Dialogs.dismiss(waitDialog);
             if (CollectionUtils.isEmpty(files) && requireFiles()) {
                 showToast(res.getString(R.string.file_list_no_files));
                 finish();
@@ -92,7 +94,9 @@ public abstract class AbstractFileListActivity<T extends ArrayAdapter<File>> ext
             listId = StoredList.STANDARD_LIST_ID;
         }
 
-        setAdapter();
+        adapter = getAdapter(files);
+        final RecyclerView view = RecyclerViewProvider.provideRecyclerView(this, R.id.list, true, true);
+        view.setAdapter(adapter);
 
         waitDialog = ProgressDialog.show(
                 this,
@@ -123,19 +127,11 @@ public abstract class AbstractFileListActivity<T extends ArrayAdapter<File>> ext
 
     }
 
-    @SuppressWarnings("static-method")
     protected boolean requireFiles() {
         return true;
     }
 
     protected abstract T getAdapter(List<File> files);
-
-    private void setAdapter() {
-        if (adapter == null) {
-            adapter = getAdapter(files);
-            setListAdapter(adapter);
-        }
-    }
 
     /**
      * Gets the base folder for file searches
@@ -184,7 +180,14 @@ public abstract class AbstractFileListActivity<T extends ArrayAdapter<File>> ext
 
                 @Override
                 public int compare(final File lhs, final File rhs) {
-                    return lhs.getName().compareToIgnoreCase(rhs.getName());
+                    return TextUtils.COLLATOR.compare(lhs.getName(), rhs.getName());
+                }
+            });
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    adapter.notifyDataSetChanged();
                 }
             });
 
@@ -202,7 +205,7 @@ public abstract class AbstractFileListActivity<T extends ArrayAdapter<File>> ext
      * Check if a filename belongs to the AbstractFileListActivity. This implementation checks for file extensions.
      * Subclasses may override this method to filter out specific files.
      *
-     * @return <code>true</code> if the filename belongs to the list
+     * @return {@code true} if the filename belongs to the list
      */
     protected boolean filenameBelongsToList(@NonNull final String filename) {
         for (final String ext : extensions) {
@@ -258,5 +261,11 @@ public abstract class AbstractFileListActivity<T extends ArrayAdapter<File>> ext
         public synchronized void setShouldEnd() {
             this.shouldEnd = true;
         }
+    }
+
+    @Override
+    public void finish() {
+        Dialogs.dismiss(waitDialog);
+        super.finish();
     }
 }

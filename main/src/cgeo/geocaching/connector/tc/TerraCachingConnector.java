@@ -1,16 +1,16 @@
 package cgeo.geocaching.connector.tc;
 
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.connector.AbstractConnector;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.util.regex.Pattern;
 
 public class TerraCachingConnector extends AbstractConnector {
 
-    @NonNull private final static Pattern PATTERN_GEOCODE = Pattern.compile("(TC|CC|LC)[0-9A-Z]{1,4}", Pattern.CASE_INSENSITIVE);
+    @NonNull private static final Pattern PATTERN_GEOCODE = Pattern.compile("(TC|CC|LC)[0-9A-Z]{1,4}", Pattern.CASE_INSENSITIVE);
 
     @Override
     @NonNull
@@ -28,6 +28,11 @@ public class TerraCachingConnector extends AbstractConnector {
     @NonNull
     public String getHost() {
         return "www.terracaching.com/";
+    }
+
+    @Override
+    public boolean getHttps() {
+        return false;
     }
 
     @Override

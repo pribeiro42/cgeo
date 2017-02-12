@@ -1,10 +1,10 @@
 package cgeo.geocaching.connector;
 
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.models.Geocache;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 class UnknownConnector extends AbstractConnector {
 
@@ -32,7 +32,7 @@ class UnknownConnector extends AbstractConnector {
     }
 
     @Override
-    public boolean canHandle(final @NonNull String geocode) {
+    public boolean canHandle(@NonNull final String geocode) {
         return StringUtils.isNotBlank(geocode);
     }
 

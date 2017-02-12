@@ -1,13 +1,13 @@
 package cgeo.geocaching.sorting;
 
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.sensors.Sensors;
 
 import java.util.ArrayList;
 import java.util.Date;
 
 /**
- * compares caches by date
+ * compares caches by hidden date
  */
 class DateComparator extends AbstractCacheComparator {
 
@@ -31,7 +31,6 @@ class DateComparator extends AbstractCacheComparator {
         return 0;
     }
 
-    @SuppressWarnings("static-method")
     protected int sortSameDate(final Geocache cache1, final Geocache cache2) {
         final ArrayList<Geocache> list = new ArrayList<>();
         list.add(cache1);

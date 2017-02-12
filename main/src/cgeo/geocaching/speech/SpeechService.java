@@ -1,18 +1,13 @@
 package cgeo.geocaching.speech;
 
-import cgeo.geocaching.CgeoApplication;
 import cgeo.geocaching.Intents;
 import cgeo.geocaching.R;
 import cgeo.geocaching.activity.ActivityMixin;
 import cgeo.geocaching.location.Geopoint;
 import cgeo.geocaching.sensors.GeoData;
 import cgeo.geocaching.sensors.GeoDirHandler;
+import cgeo.geocaching.settings.Settings;
 import cgeo.geocaching.utils.Log;
-
-import org.apache.commons.lang3.StringUtils;
-
-import rx.Subscription;
-import rx.subscriptions.Subscriptions;
 
 import android.app.Activity;
 import android.app.Service;
@@ -21,6 +16,11 @@ import android.os.IBinder;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.TextToSpeech.Engine;
 import android.speech.tts.TextToSpeech.OnInitListener;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
+import io.reactivex.disposables.CompositeDisposable;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Service to speak the compass directions.
@@ -30,8 +30,9 @@ public class SpeechService extends Service implements OnInitListener {
 
     private static final int SPEECH_MINPAUSE_SECONDS = 5;
     private static final int SPEECH_MAXPAUSE_SECONDS = 30;
+    @Nullable
     private static Activity startingActivity;
-    private static boolean isRunning = false;
+    private static final Object startingActivityLock = new Object();
     /**
      * Text to speech API of Android
      */
@@ -43,10 +44,10 @@ public class SpeechService extends Service implements OnInitListener {
     protected float direction;
     protected Geopoint position;
 
-    final GeoDirHandler geoDirHandler = new GeoDirHandler() {
+    private final GeoDirHandler geoDirHandler = new GeoDirHandler() {
 
         @Override
-        public void updateGeoDir(final GeoData newGeo, final float newDirection) {
+        public void updateGeoDir(@NonNull final GeoData newGeo, final float newDirection) {
             // We might receive a location update before the target has been set. In this case, do nothing.
             if (target == null) {
                 return;
@@ -62,10 +63,8 @@ public class SpeechService extends Service implements OnInitListener {
 
             // to speak, we want max pause to have elapsed or distance to geopoint to have changed by a given amount
             final float distance = position.distanceTo(target);
-            if (now - lastSpeechTime <= SPEECH_MAXPAUSE_SECONDS * 1000) {
-                if (Math.abs(lastSpeechDistance - distance) < getDeltaForDistance(distance)) {
-                    return;
-                }
+            if (now - lastSpeechTime <= SPEECH_MAXPAUSE_SECONDS * 1000 && Math.abs(lastSpeechDistance - distance) < getDeltaForDistance(distance)) {
+                return;
             }
 
             final String text = TextFactory.getText(position, target, direction);
@@ -82,7 +81,7 @@ public class SpeechService extends Service implements OnInitListener {
     private long lastSpeechTime = 0;
     private float lastSpeechDistance = 0.0f;
     private Geopoint target;
-    private Subscription initSubscription = Subscriptions.empty();
+    private final CompositeDisposable initDisposable = new CompositeDisposable();
 
     @Override
     public IBinder onBind(final Intent intent) {
@@ -114,7 +113,7 @@ public class SpeechService extends Service implements OnInitListener {
 
     @Override
     public void onDestroy() {
-        initSubscription.unsubscribe();
+        initDisposable.clear();
         if (tts != null) {
             tts.stop();
             tts.shutdown();
@@ -130,22 +129,35 @@ public class SpeechService extends Service implements OnInitListener {
             return;
         }
 
-        final int switchLocale = tts.setLanguage(CgeoApplication.getInstance().getApplicationLocale());
+        final int switchLocale = tts.setLanguage(Settings.getApplicationLocale());
 
         if (switchLocale == TextToSpeech.LANG_MISSING_DATA) {
-            startingActivity.startActivity(new Intent(Engine.ACTION_INSTALL_TTS_DATA));
+            synchronized (startingActivityLock) {
+                if (startingActivity != null) {
+                    startingActivity.startActivity(new Intent(Engine.ACTION_INSTALL_TTS_DATA));
+                }
+            }
             return;
         }
         if (switchLocale == TextToSpeech.LANG_NOT_SUPPORTED) {
-            Log.e("Current languge not supported by text to speech.");
-            ActivityMixin.showToast(startingActivity, R.string.err_tts_lang_not_supported);
+            Log.e("Current language not supported by text to speech.");
+            synchronized (startingActivityLock) {
+                if (startingActivity != null) {
+                    ActivityMixin.showToast(startingActivity, R.string.err_tts_lang_not_supported);
+                }
+            }
             return;
         }
 
         initialized = true;
 
-        initSubscription = geoDirHandler.start(GeoDirHandler.UPDATE_GEODIR);
-        ActivityMixin.showShortToast(startingActivity, startingActivity.getResources().getString(R.string.tts_started));
+        synchronized (startingActivityLock) {
+            final Activity startingActivityChecked = startingActivity;
+            if (startingActivityChecked != null) {
+                initDisposable.add(geoDirHandler.start(GeoDirHandler.UPDATE_GEODIR));
+                ActivityMixin.showShortToast(startingActivity, startingActivityChecked.getString(R.string.tts_started));
+            }
+        }
     }
 
     @Override
@@ -165,22 +177,25 @@ public class SpeechService extends Service implements OnInitListener {
     }
 
     public static void startService(final Activity activity, final Geopoint dstCoords) {
-        isRunning = true;
-        startingActivity = activity;
+        synchronized (startingActivityLock) {
+            startingActivity = activity;
+        }
         final Intent talkingService = new Intent(activity, SpeechService.class);
         talkingService.putExtra(Intents.EXTRA_COORDS, dstCoords);
         activity.startService(talkingService);
     }
 
     public static void stopService(final Activity activity) {
-        isRunning = false;
-        if (activity.stopService(new Intent(activity, SpeechService.class))) {
-            ActivityMixin.showShortToast(activity, activity.getResources().getString(R.string.tts_stopped));
+        synchronized (startingActivityLock) {
+            if (activity.stopService(new Intent(activity, SpeechService.class))) {
+                ActivityMixin.showShortToast(activity, activity.getString(R.string.tts_stopped));
+            }
+            startingActivity = null;
         }
     }
 
     public static boolean isRunning() {
-        return isRunning;
+        return startingActivity != null;
     }
 
 }

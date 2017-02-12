@@ -1,15 +1,14 @@
 package cgeo.geocaching.files;
 
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.connector.ConnectorFactory;
 import cgeo.geocaching.connector.gc.GCConnector;
 import cgeo.geocaching.connector.gc.GCConstants;
-import cgeo.geocaching.utils.CancellableHandler;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Trackable;
+import cgeo.geocaching.utils.DisposableHandler;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.CharEncoding;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -19,9 +18,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 
-public abstract class FileParser {
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.CharEncoding;
+
+abstract class FileParser {
     /**
      * Parses caches from input stream.
      *
@@ -36,13 +39,13 @@ public abstract class FileParser {
      *         if the input stream contains data not matching the file format of the parser
      */
     @NonNull
-    public abstract Collection<Geocache> parse(@NonNull final InputStream stream, @Nullable final CancellableHandler progressHandler) throws IOException, ParserException;
+    public abstract Collection<Geocache> parse(@NonNull final InputStream stream, @Nullable final DisposableHandler progressHandler) throws IOException, ParserException;
 
     /**
      * Convenience method for parsing a file.
      */
     @NonNull
-    public Collection<Geocache> parse(final File file, final CancellableHandler progressHandler) throws IOException, ParserException {
+    public Collection<Geocache> parse(final File file, final DisposableHandler progressHandler) throws IOException, ParserException {
         final BufferedInputStream stream = new BufferedInputStream(new FileInputStream(file));
         try {
             return parse(stream, progressHandler);
@@ -52,7 +55,7 @@ public abstract class FileParser {
     }
 
     @NonNull
-    protected static StringBuilder readStream(@NonNull final InputStream is, @Nullable final CancellableHandler progressHandler) throws IOException {
+    protected static StringBuilder readStream(@NonNull final InputStream is, @Nullable final DisposableHandler progressHandler) throws IOException {
         final StringBuilder buffer = new StringBuilder();
         final ProgressInputStream progressInputStream = new ProgressInputStream(is);
         final BufferedReader input = new BufferedReader(new InputStreamReader(progressInputStream, CharEncoding.UTF_8));
@@ -69,9 +72,9 @@ public abstract class FileParser {
         }
     }
 
-    protected static void showProgressMessage(@Nullable final CancellableHandler handler, final int bytesRead) {
+    protected static void showProgressMessage(@Nullable final DisposableHandler handler, final int bytesRead) {
         if (handler != null) {
-            if (handler.isCancelled()) {
+            if (handler.isDisposed()) {
                 throw new CancellationException();
             }
             handler.sendMessage(handler.obtainMessage(0, bytesRead, 0));
@@ -79,11 +82,8 @@ public abstract class FileParser {
     }
 
     protected static void fixCache(final Geocache cache) {
-        if (cache.getInventory() != null) {
-            cache.setInventoryItems(cache.getInventory().size());
-        } else {
-            cache.setInventoryItems(0);
-        }
+        final List<Trackable> inventory = cache.getInventory();
+        cache.setInventoryItems(inventory.size());
         final long time = System.currentTimeMillis();
         cache.setUpdated(time);
         cache.setDetailedUpdate(time);

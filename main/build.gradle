@@ -1,385 +1,611 @@
-apply plugin: 'com.android.application'
-apply plugin: 'android-apt'
-apply plugin: 'findbugs'
+import org.apache.tools.ant.filters.ReplaceTokens
 
 /*
-Usage :
-
-check dependencies :
-gradle dependencies main:dependencies
-
-build & test:
-gradle clean assembleDebug connectedAndroidTest
-
-debug:
-gradle  connectedAndroidTest --debug --stacktrace
-
-for CI? :
-gradle deviceCheck
-gradle connectedCheck
-
+ * Run "gradlew" or "gradlew cgeoHelp" in the parent directory for a help of how to use this build file.
  */
-//Testing guide : http://tools.android.com/tech-docs/new-build-system/user-guide#TOC-Testing
-//https://github.com/stephanenicolas/Quality-Tools-for-Android
 
-def AAVersion = '3.3.2'
-def RXJavaVersion = '1.0.14'
-def RXAndroidVersion = '0.25.0'
-def JacksonCoreVersion = '2.6.3'
-def JacksonDatabindVersion = '2.6.3'
-def JacksonAnnotationsVersion = '2.6.3'
-def CommonsCollections4Version = '4.0'
-def CommonsLang3Version = '3.4'
-def CommonsIoVersion = '2.4'
-def ButterKnifeVersion = '7.0.1'
-group = 'cgeo.geocaching'
-version = '0.0.1'
+
+/* 
+ * Android plugin, http://developer.android.com/tools/building/plugin-for-gradle.html
+ */
+apply plugin: 'com.android.application'
+/*
+ * https://github.com/KeepSafe/dexcount-gradle-plugin
+ */
+apply plugin: 'com.getkeepsafe.dexcount'
 
 android {
-    compileSdkVersion "Google Inc.:Google APIs:22"
-    //compileSdkVersion 19
-    buildToolsVersion "22.0.1"
+    compileSdkVersion "Google Inc.:Google APIs:23"
+    buildToolsVersion project.buildToolsVersion
 
-     compileOptions {
+    compileOptions {
+    	// use the diamond operator and some other goodies in Android
         sourceCompatibility JavaVersion.VERSION_1_7
         targetCompatibility JavaVersion.VERSION_1_7
     }
 
-    def Properties versionProps = new Properties()
-    versionProps.load(new FileInputStream(file('version.properties')))
-
-    packagingOptions {
-        exclude 'META-INF/DEPENDENCIES'
-        exclude 'META-INF/NOTICE'
-        exclude 'META-INF/LICENSE'
-        exclude 'META-INF/LICENSE.txt'
-        exclude 'META-INF/NOTICE.txt'
-    }
-
     defaultConfig {
-        minSdkVersion 9
-        targetSdkVersion 19
-        versionName versionProps['name']
-        versionCode versionProps['code'].toInteger()
+        // TODO fill this section and remove the values from AndroidManifest only after the full switch to gradle
+        // As these values override the manifest, we might otherwise use different values in gradle and non-gradle builds.
+        minSdkVersion project.minSdkVersion
+        targetSdkVersion 22
+        versionName versionNameFromDate()
+        versionCode versionCodeFromDate(0)
 
         // NOTE: must match the package in the test directory and must be different from the app package
         testApplicationId "cgeo.geocaching.test"
 
-        testInstrumentationRunner "cgeo.junit.CgeoTestRunner"
-
         //testHandlingProfiling true
         testFunctionalTest true
+
+        // set the default test runner to be used by IDE and command line
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+        // by convention, the folder name "main" is used for the APK file name. we want cgeo instead
+        archivesBaseName = "cgeo"
+
+        // this is necessary to move .google_measurement_service into a app-specific namespace (see https://github.com/kotmyrevich/analytics-issues/issues/784)
+        applicationId = "cgeo.geocaching"
+
+        // include only those language resources from libraries which we actively maintain ourself in the translation project
+        resConfigs "en","ca","cs","da","de","es","fi","fr","hu","it","ja","ko","lt","lv","nb","nl","pl","pt","ro","ru","sk","sl","sv"
     }
 
-    //Conditional signing
-    //Uncomment and set the 4 key properties (#key.store, ...) in gradle.properties
+    // signing is handled via private.properties
     signingConfigs {
-        release 
+        release
     }
-
 
     buildTypes {
         debug {
-            //packageNameSuffix ".debug"
-            //zipAlign = true
-            debuggable true
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-project.txt'
-            versionNameSuffix " Debug " + versionProps['betaNumber']
+            // debug build name contains git commit for better reproduction of bugs
+            versionNameSuffix "-" + gitCommitId().substring(0, 7) + " developer build"
+
+            // additional proguard rules just for the test code
+			testProguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-project.txt', '../tests/proguard-project.txt'
+
+            // code coverage
+            testCoverageEnabled true
         }
-        release {
-            debuggable true
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-project.txt'
+        nightly {
+            def nightlyName = System.getenv('NB') // NB, NB1, ...
+            versionNameSuffix "-$nightlyName-" + gitCommitId().substring(0, 7)
             signingConfig signingConfigs.release
         }
+        rc {
+            def rcName = System.getenv('RC') // RC, RC1, RC2 ...
+            versionNameSuffix "-$rcName"
+            signingConfig signingConfigs.release
+        }
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+    
+    buildTypes.all { buildType ->
+        // enable proguard and remove unused code
+        buildType.minifyEnabled true
+
+        // remove unused resources in addition to unused code
+        shrinkResources true
+
+		// proguard rules
+        buildType.proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-project.txt'
     }
 
     testBuildType "debug" //the default BuildType
 
     sourceSets {
+    	// application sources in source set "main"
         main {
             manifest.srcFile 'AndroidManifest.xml'
-            //java.srcDirs = ['src', 'thirdparty', 'annotation_gen']
-            java.srcDirs = ['src', 'thirdparty']
+            java.srcDirs = ['src', 'thirdparty', '../common/src'] // no need for annotation generated sources
             res.srcDirs = ['res']
             assets.srcDirs = ['assets']
+            aidl.srcDirs = ['src'] // default src/main/aidl creates package name conflicts in Eclipse
         }
-        //new instrumentTest name
-        androidTest.setRoot('../tests')
-        androidTest{
+        // local unit tests, which can be executed without a device
+        test {
+            setRoot("../tests")
             manifest.srcFile '../tests/AndroidManifest.xml'
-            java.srcDirs = ['../tests/java']
-            res.srcDirs = ['../tests/res', 'res']
-            resources.srcDirs = ['../tests/res', 'res']
+            java.srcDir '../tests/src'
+            resources.srcDirs = ['../tests/src']
+            res.srcDirs = ['../tests/res']
         }
+        // device/emulator based instrumentation tests in source set "androidTest"
+        androidTest{
+            // map tests to the Eclipse style test project instead of the default app/src/androidTest/java
+            setRoot("../tests")
+            manifest.srcFile '../tests/AndroidManifest.xml'
+            java {
+                srcDir '../tests/src-android'
+
+                // TODO: espresso causes some dependency conflicts, therefore disable espresso tests temporarily
+                exclude '**/*EspressoTest.java'
+                exclude '**/*LogTrackableActivityTest.java'
+                exclude '**/activity/waypoint/*Waypoint*Test.java'
+            }
+            resources.srcDirs = ['../tests/src']
+            res.srcDirs = ['../tests/res']
+        }
+        // TODO: the package cgeo.geocaching.test.mock is currently duplicated in both "src" and "src-android". if a shared source folder is used instead, then we get java.lang.VerificationExceptions, because the 2 unit test frameworks modify the classes in different ways
     }
+
     testOptions {
         resultsDir = "$project.buildDir/build/test-results"
     }
 
     lintOptions {
-        //checkReleaseBuilds false
-        // Or, if you prefer, you can continue to check for errors in release builds,
-        // but continue the build even when errors are found:
+    	// generally we accept lint errors when building 
         abortOnError false
+        
+    	// abort release builds in case of FATAL errors
+        checkReleaseBuilds true
+
+        // recommended by ButterKnife, http://jakewharton.github.io/butterknife/
+        disable 'InvalidPackage'
     }
 
+    packagingOptions {
+        // you can double click an APK file in Android Studio 2.2+ to see what's in there
+        // license files of libs are not needed in our APK
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/dependencies'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/notice'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/license'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/license.txt'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/notice.txt'
+        exclude 'COPYING'
+        exclude 'COPYING.LESSER'
+        exclude '.readme'
+        // AndroidAnnotations
+        exclude 'androidannotations-api.properties'
+        // findbugs
+        exclude 'META-INF/maven/com.google.code.findbugs/jsr305/pom.properties'
+        exclude 'META-INF/maven/com.google.code.findbugs/jsr305/pom.xml'
+        exclude 'jsr305_annotations/Jsr305_annotations.gwt.xml'
+        // mapsforge
+        exclude 'META-INF/maven/org.mapsforge/mapsforge-map-reader/pom.properties'
+        exclude 'META-INF/maven/org.mapsforge/mapsforge-map-reader/pom.xml'
+        exclude 'META-INF/maven/org.mapsforge/mapsforge-map/pom.properties'
+        exclude 'META-INF/maven/org.mapsforge/mapsforge-map/pom.xml'
+        exclude 'COPYING.LESSER.v3'
+        exclude 'COPYING.v3'
+        // Play Services
+        exclude 'build-data.properties'
+        // rxjava
+        exclude 'META-INF/rxandroid.properties'
+        exclude 'META-INF/rxjava.properties'
+    }
+
+    productFlavors {
+        // make sure to not have any flavour lexicographically smaller than "basic". Android Studio takes the first alphabetical flavor in new installations.
+        basic {
+            buildConfigField "String", "SPECIAL_BUILD", '""'
+        }
+
+        nojit {
+            buildConfigField "String", "SPECIAL_BUILD", '"Disabled JIT"'
+        }
+    }
+
+    // remove the "-basic" flavour name from the generated APK, have the flavor remain only for special builds
+    applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            output.outputFile = new File(
+                    output.outputFile.parent,
+                    output.outputFile.name.replace('-basic-', '-'))
+        }
+    }
+
+    // special version code for nightly and rc builds
+    applicationVariants.all { variant ->
+        if (variant.buildType.name.equals('nightly')) {
+            variant.mergedFlavor.versionCode = versionCodeFromDate(10000000)
+        }
+        if (variant.buildType.name.equals('rc')) {
+            variant.mergedFlavor.versionCode = versionCodeFromDate(-1)
+        }
+        // debug and release builds have offset zero, no special handling here
+    }
 }
 
-if (project.hasProperty('key.store') &&
-        project.hasProperty('key.store.password') &&
-        project.hasProperty('key.alias.password')) {
-     android.signingConfigs.release.storeFile = file(project.property('key.store'))
-     android.signingConfigs.release.storePassword = property('key.store.password')
-     android.signingConfigs.release.keyPassword = property('key.alias.password')
-     android.signingConfigs.release.keyAlias = property('key.alias')
-} else {
-   android.buildTypes.release.signingConfig = null
+/*
+ * AndroidAnnotations, https://github.com/excilys/androidannotations/wiki/building-project-gradle
+ */
+apply plugin: 'android-apt'
+
+apt {
+    arguments {
+        // AndroidAnnotations needs to know the manifest of the current flavor
+        androidManifestFile variant.outputs[0]?.processResources?.manifestFile
+
+        // suppress verbose output of the AndroidAnnotations processor during build
+        logLevel 'error'
+    }
 }
 
 dependencies {
-    // Android annotations
-    apt( "org.androidannotations:androidannotations:$AAVersion"){
-        exclude module:'androidannotations-api'
+    // AndroidAnnotations, https://github.com/excilys/androidannotations/wiki/building-project-gradle
+    def androidAnnotationsVersion = '4.2.0'
+    apt "org.androidannotations:androidannotations:$androidAnnotationsVersion"
+    compile "org.androidannotations:androidannotations-api:$androidAnnotationsVersion"
+
+    // Apache Commons
+    compile 'org.apache.commons:commons-collections4:4.1'
+    compile 'org.apache.commons:commons-compress:1.13'
+    compile 'commons-io:commons-io:2.5'
+    compile 'org.apache.commons:commons-lang3:3.5'
+
+    // AssertJ for testing, needed both for local unit tests and Android instrumentation tests
+    def assertJVersion = '1.7.1'
+    testCompile "org.assertj:assertj-core:$assertJVersion"
+    androidTestCompile "org.assertj:assertj-core:$assertJVersion"
+
+    // ButterKnife view injection, https://github.com/JakeWharton/butterknife
+    def butterKnifeVersion = '8.4.0'
+    compile "com.jakewharton:butterknife:$butterKnifeVersion"
+    apt "com.jakewharton:butterknife-compiler:$butterKnifeVersion"
+
+    // Findbugs
+    compile ('com.google.code.findbugs:annotations:3.0.1u2') {
+        exclude group: 'com.google.code.findbugs', module: 'jsr305'
+        exclude group: 'net.jcip', module: 'jcip-annotations'
     }
-    compile "org.androidannotations:androidannotations-api:$AAVersion"
+
+    // Jackson XML processing
+    def jacksonVersion = '2.8.6'
+    compile "com.fasterxml.jackson.core:jackson-core:$jacksonVersion"
+    compile "com.fasterxml.jackson.core:jackson-databind:$jacksonVersion"
+    compile "com.fasterxml.jackson.core:jackson-annotations:$jacksonVersion"
+
+    // Jsoup HTML parsing
+    compile 'org.jsoup:jsoup:1.10.2'
+
+    // Junit only needed for local unit tests
+    testCompile 'junit:junit:4.12'
+
+    // Leak Canary, memory leak detection
+    def leakCanaryVersion = '1.5'
+    debugCompile "com.squareup.leakcanary:leakcanary-android:$leakCanaryVersion"
+    releaseCompile "com.squareup.leakcanary:leakcanary-android-no-op:$leakCanaryVersion"
+    nightlyCompile "com.squareup.leakcanary:leakcanary-android-no-op:$leakCanaryVersion"
+    rcCompile "com.squareup.leakcanary:leakcanary-android-no-op:$leakCanaryVersion"
+    testCompile "com.squareup.leakcanary:leakcanary-android-no-op:$leakCanaryVersion"
+
+    // Locus Maps integration
+    def locusVersion = '0.2.7'
+    compile "com.asamm:locus-api:$locusVersion"
+    compile "com.asamm:locus-api-android:$locusVersion"
+
+    // Mapsforge old version
+    compile files('libs/mapsforge-map-0.3.0-jar-with-dependencies.jar')
+    compile 'com.caverock:androidsvg:1.2.2-beta-1'
+
+    // Mapsforge new version
+    def mapsforgeVersion = '0.7.0'
+    compile "org.mapsforge:mapsforge-core:$mapsforgeVersion"
+    compile "org.mapsforge:mapsforge-map:$mapsforgeVersion"
+    compile "org.mapsforge:mapsforge-map-android:$mapsforgeVersion"
+    compile "org.mapsforge:mapsforge-map-reader:$mapsforgeVersion"
+    compile "org.mapsforge:mapsforge-themes:$mapsforgeVersion"
+    configurations {
+        all*.exclude group: 'net.sf.kxml', module: 'kxml2' // duplicate XmlPullParser class
+    }
 
     // Maps.ME integration
     compile project(":mapswithme-api")
 
+    // Metadata Extractor, EXIF location extraction from images
+    compile 'com.drewnoakes:metadata-extractor:2.10.0'
+
+    // Okhttp network access
+    compile 'com.squareup.okhttp3:okhttp:3.6.0'
+
+    // Play Services
+    def playServicesVersion = '9.4.0'
+    compile "com.google.android.gms:play-services-location:$playServicesVersion"
+    compile "com.google.android.gms:play-services-appinvite:$playServicesVersion"
+    // somehow there is a transitive play service dependency which we don't want
+    configurations.all*.exclude module: "play-services-measurement"
+
+    // ProcessPhoenix, reliable process restart
+    compile 'com.jakewharton:process-phoenix:1.1.1'
+
+    // RxJava
+    compile "io.reactivex.rxjava2:rxjava:2.0.5"
+    compile "io.reactivex.rxjava2:rxandroid:2.0.1"
+
     // Showcase view
+    // TODO replace by repository dependency. however, there is a conflict in min sdk, which needs to be solved then
     compile project(":showcaseview")
 
-    compile files('libs/httpclientandroidlib-1.1.2.jar')
-    compile files('libs/locus-api-4.0.jar')
-    //https://mapsforge.googlecode.com/files/mapsforge-map-0.2.4.jar
-    compile files('libs/mapsforge-map-0.2.4.jar')
-    compile files('libs/mapsforge-map-0.3.0-jar-with-dependencies.jar')
-
+    // Support Library. Appcompat
     compile 'com.android.support:appcompat-v7:20.0.0'
-    compile 'com.google.android.gms:play-services:7.3.0'
+    
+    // Support Library RecyclerView
+    compile 'com.android.support:recyclerview-v7:22.0.0'
+    // we don't want to implement decorators on our own
+	compile 'com.yqritc:recyclerview-flexibledivider:1.4.0'
 
-    // Annotations for View injection
-    compile "com.jakewharton:butterknife:$ButterKnifeVersion"
+    // Support Annotations. enforce same version for the main app and the test app
+    def supportAnnotationsVersion = '24.2.1'
+    compile "com.android.support:support-annotations:$supportAnnotationsVersion"
+    androidTestCompile "com.android.support:support-annotations:$supportAnnotationsVersion"
 
-    // Apache Commons
-    compile "org.apache.commons:commons-collections4:$CommonsCollections4Version"
-    compile "org.apache.commons:commons-lang3:$CommonsLang3Version"
-    compile "commons-io:commons-io:$CommonsIoVersion"
-    compile 'com.google.code.findbugs:annotations:3.0.0'
-
-    // Reactive extensions
-    compile "io.reactivex:rxjava:$RXJavaVersion"
-    compile "io.reactivex:rxandroid:$RXAndroidVersion"
-
-    // Jackson XML processing
-    compile "com.fasterxml.jackson.core:jackson-core:$JacksonCoreVersion"
-    compile "com.fasterxml.jackson.core:jackson-databind:$JacksonDatabindVersion"
-    compile "com.fasterxml.jackson.core:jackson-annotations:$JacksonAnnotationsVersion"
-
-    // Zxing integration
-    compile "com.google.zxing:android-integration:3.2.1"
-
-    //TEST
-    //compile files("compile-libs/androidannotations-$AAVersion.jar")
-    //compile files('compile-libs/findbugs-ant.jar')
-    //compile files('compile-libs/findbugs-jsr305.jar')  //CheckForNull conflict with com.google.code.findbugs:annotations
-
-    // Null annotations
-    compile 'org.eclipse.jdt:org.eclipse.jdt.annotation:1.1.0'
+    // Testing Support Library. Android Studio recommended test runner, see https://developer.android.com/tools/testing-support-library/index.html#setup
+    androidTestCompile 'com.android.support.test:runner:0.5'
 
     // Undo toast
-    // TODO: This dependency does not work correctly and I don't know how to use the local project properly instead
     compile 'com.github.jenzz.undobar:library:1.3:api8Release@aar'
-    // compile files("../undobar/libs/undobar-1.3.jar")
     compile 'com.nineoldandroids:library:2.4.0'
 
-    //Robotium / Robolectric??
-    androidTestCompile files('../tests/libs/android-junit-report-1.5.8.jar')
+    // ViewPagerIndicator, view pager titles for cache details and similar view pager based activities
+    // this is a fork of the original viewpager library which still works with android level 9. we can use 'com.github.JakeWharton:ViewPagerIndicator:2.4.1@aar' when switching to min sdk 11.
+    compile 'com.viewpagerindicator:viewpagerindicator:2.4.3'
+
+    // Zxing barcode reader integration
+    compile 'com.google.zxing:android-integration:3.3.0'
+
+    // Espresso TODO: disabled because of causing proguard errors en masse (due to including hamcrest and what else as own dependencies)
+    // androidTestCompile 'com.jakewharton.espresso:espresso:1.1-r3'
 }
 
 /*
- ANDROID ANNOTATIONS
+ * un-mocking of Android classes that don't depend on the Android device, but are portable Java only, like SparseArray
  */
+apply plugin: 'de.mobilej.unmock'
 
-apt {
-    arguments {
-        androidManifestFile variant.outputs[0].processResources.manifestFile
-        resourcePackageName 'cgeo.geocaching'
-
-        // If you're using Android NBS flavors you should use the following line instead of hard-coded packageName
-        // resourcePackageName android.defaultConfig.packageName
-
-        // You can set optional annotation processing options here, like these commented options:
-        // logLevel 'INFO'
-        // logFile '/var/log/aa.log'
-    }
-}
 
 /*
- FINDBUGS
-
- Usage : gradle check
-
+ * Google Services (App Invite)
  */
+apply plugin: 'com.google.gms.google-services'
 
-//http://www.gradle.org/docs/current/dsl/org.gradle.api.plugins.quality.FindBugsExtension.html
-findbugs {
-    toolVersion = "3.0.1"
-    //sourceSets = [sourceSets.main]
-    ignoreFailures = true
-    reportsDir = file("$project.buildDir/reports")
-    effort = "max"
-    reportLevel = "high"
-    //visitors = ["FindSqlInjection", "SwitchFallthrough"]
-    //omitVisitors = ["FindNonShortCircuit"]
-    //includeFilter = file("$rootProject.projectDir/project/findbugs/inclusions.xml")
-    excludeFilter = file("$rootProject.projectDir/project/findbugs/exclusions.xml")
-
-}
 
 /*
-*
-*
-* END of useful build
-* Following task are for samples
-*
+ * verify existence of the necessary keys for compilation, instead of waiting for a compile error
  */
 
-task logInfo {
-    logging.captureStandardOutput LogLevel.INFO
+project.afterEvaluate{
+    preBuild.dependsOn("verifyCgeoKeys")
+}
+
+task verifyCgeoKeys {
     doFirst {
-        println 'A task message which is logged at INFO level'
-    }
-}
-
-/*
- UNIT TEST
- */
-/*
-sourceSets {
-    unitTest {
-        java.srcDir file('../tests/src')
-        //java.srcDirs =  ['src', 'thirdparty', 'annotation_gen', '../tests']
-        resources.srcDir file('../tests/res')
-        //manifest.srcFile '../tests/AndroidManifest.xml'
-    }
-}
-dependencies {
-    //unitTestCompile files("$project.buildDir/classes/release")
-    unitTestCompile files("$project.buildDir/classes/debug")
-    unitTestCompile 'junit:junit:4.8.2'
-    unitTestCompile 'com.google.android:android-test:4.1.1.4'
-
-    unitTestCompile "org.androidannotations:androidannotations-api:$AAVersion"
-    unitTestCompile "com.jakewharton:butterknife:$ButterKnifeVersion"
-    unitTestCompile "org.apache.commons:commons-collections4:$CommonsCollections4Version"
-    unitTestCompile "commons-io:commons-io:$CommonsIoVersion"
-    unitTestCompile 'org.apache.commons:commons-lang3:$CommonsLang3Version'
-    unitTestCompile 'com.google.code.findbugs:annotations:3.0.0'
-    unitTestCompile 'io.reactivex:rxjava-core:$RXVersion'
-    unitTestCompile 'io.reactivex:rxjava-android:$RXVersion'
-}
-
-// extend the runtime
-configurations {
-    unitTestCompile.extendsFrom runtime
-    unitTestRuntime.extendsFrom unitTestCompile
-}
-
-// add the unitTest task
-//task unitTest(type:Test, dependsOn: assemble) {
-task unitTest(type:Test, dependsOn: assembleDebug) {
-    description = "run unit tests"
-    testClassesDir = project.sourceSets.unitTest.output.classesDir
-    classpath = project.sourceSets.unitTest.runtimeClasspath
-}
-// bind to check
-check.dependsOn unitTest
-//build.dependsOn unitTest
-*/
-
-//run gradle compileTest
-
-/*
- PLACEHOLDER
- */
-
-//Not working...copy templates/keys.xml in res/values for the moment
-task prep() {
-    /*
-    requiredProperties "maps.api.key", "maps.api.key.market", "ocde.okapi.consumer.key", "ocde.okapi.consumer.secret", "ocpl.okapi.consumer.key", "ocpl.okapi.consumer.secret"
-    doFirst {
-        logger.info("prep... ")
-
-        copy {
-            from "templates"
-            include "*.xml"
-            into "res/values"
-            filter(org.apache.tools.ant.filters.ReplaceTokens, tokens:  project.ext.filterTokens)
-        }
-    }
-    */
-}
-task prep2() {
-/*
-        //http://goo.gl/bqnwjJ
-        copy{
-            from("${buildDir}/manifests"){
-                include "${variant.dirName}/AndroidManifest.xml"
-            }
-            into("${buildDir}/manifests/$variant.name")
-
-            // define a variable for your key:
-            def gmaps_key = "<your-key>"
-
-            filter{
-                String line -> line.replaceAll("<meta-data android:name=\"com.google.android.maps.v2.API_KEY\" android:value=\"\"/>",
-                                               "<meta-data android:name=\"com.google.android.maps.v2.API_KEY\" android:value=\"" + gmaps_key + "\"/>")
-            }
-
-            // set the path to the modified Manifest:
-            variant.processResources.manifestFile = file("${buildDir}/manifests/${variant.name}/${variant.dirName}/AndroidManifest.xml")
-        }
-
-
-         */
-}
-
-android.applicationVariants.all{ variant ->
-    variant.mergeResources.doLast{
-        logger.info("rootProject.projectDir="+rootProject.projectDir)
-        prep{}
-    }
-}
-
-//http://blog.futurice.com/android_unit_testing_in_ides_and_ci_environments
-task addTest {
-    def src = ['tests/java']
-    def file = file("app.iml")
-
-    doLast {
-        try {
-            def parsedXml = (new XmlParser()).parse(file)
-            def node = parsedXml.component[1].content[0]
-            src.each {
-                def path = 'file://$MODULE_DIR$/' + "${it}"
-                def set = node.find { it.@url == path }
-                if (set == null) {
-                    new Node(node, 'sourceFolder', ['url': 'file://$MODULE_DIR$/' + "${it}", 'isTestSource': "true"])
-                    def writer = new StringWriter()
-                    new XmlNodePrinter(new PrintWriter(writer)).print(parsedXml)
-                    file.text = writer.toString()
+        def keysFile = file("res/values/keys.xml")
+        if (!keysFile.exists()) {
+            // copy keys from private.properties to keys.xml. used by the CI server at least
+            def propertiesFile = rootProject.file("private.properties")
+            if (propertiesFile.exists()) {
+                copy {
+                    from "templates/keys.xml"
+                    into ("res/values")
+                    def properties = new Properties()
+                    propertiesFile.withInputStream {
+                        properties.load(it);
+                    }
+                    filter(ReplaceTokens, tokens: properties)
+                    filter { it.replaceAll("@.+?@", "") }
                 }
             }
-        } catch (FileNotFoundException e) {
-            // nop, iml not found
+        }
+        if (!keysFile.exists()) {
+            throw new InvalidUserDataException("You must provide keys in main/res/values/keys.xml for cgeo to compile successfully. You can copy from main/templates/keys.xml and just add the necessary values.")
         }
     }
 }
+
+configure (verifyCgeoKeys) {
+    group = 'verification'
+    description = 'Checks for the existence of keys.xml to successfully compile cgeo.'
+}
+
+
 /*
-// always do the addtest on prebuild
-gradle.projectsEvaluated {
-    preBuild.dependsOn(addTest)
-}*/
+ * version number from the current date, plus an offset defined by the build type (to define which versions overwrite each other)
+ */
+def versionCodeFromDate(offset) {
+    def date = new Date()
+    def formattedDate = date.format('yyyyMMdd')
+    return Integer.valueOf(formattedDate) + offset
+}
+
+/*
+ * version name based on current date
+ */ 
+def versionNameFromDate() {
+    def date = new Date()
+    def formattedDate = date.format('yyyy.MM.dd')
+    return formattedDate
+}
+
+/*
+ * get the most recent git commit ID
+ */
+def gitCommitId() {
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'rev-parse', 'HEAD'
+        standardOutput = stdout
+    }
+    return stdout.toString().trim()
+}
+
+/*
+ * have a run task for our builds to launch the app directly from gradle
+ */
+android.applicationVariants.all { variant ->
+    if (variant.install) {
+        tasks.create(name: "run${variant.name.capitalize()}", dependsOn: variant.install) {
+            group 'cgeo'
+            description "Installs the ${variant.description} and runs the main activity. Depends on 'adb' being on the PATH."
+
+            doFirst {
+                def classpath = variant.applicationId
+                if (variant.buildType.applicationIdSuffix) {
+                    classpath -= "${variant.buildType.applicationIdSuffix}"
+                }
+                def launchClass = "${variant.applicationId}/${classpath}.MainActivity"
+                try {
+                    project.exec {
+                        executable = project.android.getAdbExe().toString()
+                        args = ['shell', 'am', 'start', '-n', launchClass]
+                    }
+                }
+                catch (RuntimeException e) {
+                    throw new IllegalStateException("Cannot execute 'adb'. Please add %ANDROID_HOME%\\platform-tools to the PATH environment variable and restart your IDE", e)
+                }
+            }
+        }
+
+    }
+}
+
+// run device and non device tests together with one task. also fixes the bug that gradle optimizes tests away in repeated runs
+tasks.create(name: "testDebug", dependsOn: [ "testBasicDebugUnitTest", "connectedBasicDebugAndroidTest" ]) {
+    group 'cgeo'
+    description "Tests the debug build both with device-dependent and device-independent tests."
+}
+
+/*
+ * signing of release APK, use a properties file like in templates/private.properties
+ */
+
+// dynamically load the signing values from private.properties
+File privatePropertiesFile = rootProject.file('private.properties')
+if (privatePropertiesFile.exists()) {
+    Properties properties = new Properties()
+    properties.load(new FileInputStream(privatePropertiesFile))
+    android.signingConfigs {
+        release {
+            storeFile file(properties.getProperty('key.store'))
+            storePassword properties.getProperty('key.store.password')
+            keyAlias properties.getProperty('key.alias')
+            keyPassword properties.getProperty('key.alias.password')
+        }
+    }
+    android.buildTypes.release.signingConfig android.signingConfigs.release
+}
+
+// check existence of private properties, show an error message
+task verifyPrivateProperties {
+    doLast {
+        if (!rootProject.file('private.properties').exists()) {
+            throw new InvalidUserDataException("For signing the release build you must provide a file private.properties in the root directory. Copy templates/private.properties and change the values.")
+        }
+    }
+}
+
+// copy preferences containing user and password to the device
+task copyDefaultPreferencesToAndroid(dependsOn: 'installBasicDebug') {
+    doFirst {
+        def preferences = file('cgeo.geocaching_preferences.xml')
+        if (preferences.exists()) {
+            try {
+                project.exec {
+                    executable = project.android.getAdbExe().toString()
+                    args = ['push', 'cgeo.geocaching_preferences.xml', '/data/data/cgeo.geocaching/shared_prefs/cgeo.geocaching_preferences.xml']
+                }
+            }
+            // we might not actually have permission to copy the preferences on actual devices, let's continue running the app then
+            catch (RuntimeException e) {
+                print(e.message)
+            }
+        }
+    }
+}
+
+tasks.whenTaskAdded { theTask ->
+    // only verify the existence of private.properties, when the file is really needed
+    if (theTask.name.equals("packageRelease")) {
+        theTask.dependsOn "verifyPrivateProperties"
+    }
+    // copy default preferences before starting the app
+    if (theTask.name.equals("runBasicDebug") || theTask.name.equals("connectedBasicDebugAndroidTest")) {
+        theTask.dependsOn "copyDefaultPreferencesToAndroid"
+    }
+}
+
+task downloadLibs {
+    group "cgeo"
+    description "Downloads the dependency JARs for use with Eclipse"
+    doFirst {
+        configurations.compile.resolvedConfiguration.resolvedArtifacts.each { ResolvedArtifact artifact ->
+        	if (artifact.extension == 'jar') {
+	            project.copy {
+	                from artifact.file
+	                into "libs"
+	            }
+            }
+        }
+        // download javadoc
+        configurations.compile.dependencies.each { Dependency dependency ->
+            try {
+                def vendor = dependency.group.replace(".","/")
+                def version = dependency.version
+                def name = dependency.name
+                def javaDocFile = new File(".\\main\\libs\\src\\${name}-${version}-javadoc.jar")
+                if (!javaDocFile.exists()) {
+                    try {
+                        new URL("https://search.maven.org/remotecontent?filepath=${vendor}/${name}/${version}/${name}-${version}-javadoc.jar").withInputStream{ i -> javaDocFile.withOutputStream{ it << i }}
+                    }
+                    catch (FileNotFoundException e) {
+                        // not all dependencies have javadoc
+                        println(e.message)
+                    }
+                }
+                def sourcesFile = new File(".\\main\\libs\\src\\${name}-${version}-sources.jar")
+                if (!sourcesFile.exists()) {
+                    try {
+                        new URL("https://search.maven.org/remotecontent?filepath=${vendor}/${name}/${version}/${name}-${version}-sources.jar").withInputStream{ i -> sourcesFile.withOutputStream{ it << i }}
+                    }
+                    catch (FileNotFoundException e) {
+                        // not all dependencies have sources
+                        println(e.message)
+                    }
+                }
+                def propFile = new File(".\\main\\libs\\${name}-${version}.jar.properties")
+                if (!propFile.exists()) {
+                    propFile.write("src=src/${name}-${version}-sources.jar\ndoc=src/${name}-${version}-javadoc.jar\n")
+                }
+            }
+            catch (RuntimeException e) {
+                // ???
+                println(e.message)
+            }
+        }
+    }
+}
+
+apply plugin: 'checkstyle'
+
+check.dependsOn 'checkstyle'
+
+task checkstyle(type: Checkstyle) {
+    configFile file("${project.rootDir}/main/project/checkstyle/checkstyle.xml")
+    source 'src'
+    include '**/*.java'
+
+    classpath = files()
+}
+
+/*
+ * Ribbonizer, adds ribbons to launcher icon of debug builds
+ * https://github.com/gfx/gradle-android-ribbonizer-plugin
+ */
+apply plugin: 'com.github.gfx.ribbonizer'
+
+ribbonizer {
+    // ribbonize also the about page logo, not only the application icon
+    iconNames "@drawable/cgeo_logo"
+
+    // use yellowish ribbon instead of default green
+    builder { variant, iconFile ->
+        return yellowRibbonFilter(variant, iconFile)
+    }
+}

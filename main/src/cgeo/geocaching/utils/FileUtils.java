@@ -1,10 +1,12 @@
 package cgeo.geocaching.utils;
 
+import cgeo.geocaching.CgeoApplication;
+import cgeo.geocaching.R;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.CharEncoding;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.os.Handler;
 import android.os.Message;
@@ -62,7 +64,7 @@ public final class FileUtils {
                         continue; // skip hidden directories
                     }
                     if (name.length() > 16) {
-                        name = name.substring(0, 14) + '…';
+                        name = name.substring(0, 14) + CgeoApplication.getInstance().getString(R.string.ellipsis);
                     }
                     if (feedBackHandler != null) {
                         feedBackHandler.sendMessage(Message.obtain(feedBackHandler, 0, name));
@@ -140,7 +142,7 @@ public final class FileUtils {
     /**
      * Deletes a file and logs deletion failures.
      *
-     * @return <code> true</code> if this file was deleted, <code>false</code> otherwise.
+     * @return {@code true} if this file was deleted, {@code false} otherwise.
      */
     public static boolean delete(final File file) {
         final boolean success = file.delete() || !file.exists();
@@ -153,7 +155,7 @@ public final class FileUtils {
     /**
      * Creates the directory named by the given file, creating any missing parent directories in the process.
      *
-     * @return <code>true</code> if the directory was created, <code>false</code> on failure or if the directory already
+     * @return {@code true} if the directory was created, {@code false} on failure or if the directory already
      *         existed.
      */
     public static boolean mkdirs(final File file) {
@@ -174,7 +176,7 @@ public final class FileUtils {
             fileWriter = new OutputStreamWriter(buffer, CharEncoding.UTF_16);
             fileWriter.write(content);
         } catch (final IOException e) {
-            Log.e("FieldnoteExport.ExportTask export", e);
+            Log.e("FieldNoteExport.ExportTask export", e);
             return false;
         } finally {
             IOUtils.closeQuietly(fileWriter);

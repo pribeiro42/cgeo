@@ -1,14 +1,14 @@
 package cgeo.geocaching.connector.trackable;
 
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.Image;
-import cgeo.geocaching.TrackableLog;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Image;
 import cgeo.geocaching.connector.ImageResult;
 import cgeo.geocaching.connector.LogResult;
-import cgeo.geocaching.enumerations.LogTypeTrackable;
+import cgeo.geocaching.log.LogTypeTrackable;
+import cgeo.geocaching.log.TrackableLog;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.util.Calendar;
 import java.util.List;
@@ -28,15 +28,15 @@ public interface TrackableLoggingManager {
                              Image image);
 
     @NonNull
-    public List<LogTypeTrackable> getPossibleLogTypesTrackable();
+    List<LogTypeTrackable> getPossibleLogTypesTrackable();
 
-    public boolean canLogTime();
+    boolean canLogTime();
 
-    public boolean canLogCoordinates();
+    boolean canLogCoordinates();
 
-    public void setGuid(final String guid);
+    void setGuid(final String guid);
 
-    public boolean isTrackingCodeNeededToPostNote();
+    boolean isTrackingCodeNeededToPostNote();
 
-    public boolean postReady();
+    boolean postReady();
 }

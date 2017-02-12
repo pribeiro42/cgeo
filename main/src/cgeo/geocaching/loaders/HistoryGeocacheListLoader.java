@@ -1,24 +1,24 @@
 package cgeo.geocaching.loaders;
 
-import cgeo.geocaching.DataStore;
 import cgeo.geocaching.SearchResult;
 import cgeo.geocaching.enumerations.CacheType;
 import cgeo.geocaching.location.Geopoint;
 import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.storage.DataStore;
 
-import android.content.Context;
+import android.app.Activity;
 
 public class HistoryGeocacheListLoader extends AbstractSearchLoader {
     private final Geopoint coords;
 
-    public HistoryGeocacheListLoader(final Context context, final Geopoint coords) {
-        super(context);
+    public HistoryGeocacheListLoader(final Activity activity, final Geopoint coords) {
+        super(activity);
         this.coords = coords;
     }
 
     @Override
     public SearchResult runSearch() {
-        return DataStore.getHistoryOfCaches(true, coords != null ? Settings.getCacheType() : CacheType.ALL);
+        return DataStore.getHistoryOfCaches(coords != null ? Settings.getCacheType() : CacheType.ALL);
     }
 
 }

@@ -1,13 +1,13 @@
 package cgeo.geocaching.utils;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.enumerations.CacheType;
-
 import junit.framework.TestCase;
 
 import java.util.Calendar;
+
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.enumerations.CacheType;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CalendarUtilsTest extends TestCase {
 

@@ -1,6 +1,7 @@
 package cgeo.geocaching.sorting;
 
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.connector.gc.GCConstants;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.utils.Log;
 
 import org.apache.commons.lang3.StringUtils;
@@ -28,21 +29,25 @@ abstract class AbstractCacheComparator implements CacheComparator {
     }
 
     private static int fallbackToGeocode(final Geocache cache1, final Geocache cache2) {
-        return StringUtils.defaultString(cache1.getGeocode()).compareToIgnoreCase(StringUtils.defaultString(cache2.getGeocode()));
+        final int comparePrefix = StringUtils.compareIgnoreCase(StringUtils.substring(cache1.getGeocode(), 0, 2), StringUtils.substring(cache2.getGeocode(), 0, 2));
+        if (comparePrefix == 0) {
+            return (int) (GCConstants.gccodeToGCId(cache1.getGeocode())
+                    - GCConstants.gccodeToGCId(cache2.getGeocode()));
+        }
+        return comparePrefix;
     }
 
     /**
      * Check necessary preconditions (like missing fields) before running the comparison itself.
      * Caches not filling the conditions will be placed last, sorted by Geocode.
      *
-     * The default implementation returns <code>true</code> and can be overridden if needed in sub classes.
-     * 
+     * The default implementation returns {@code true} and can be overridden if needed in sub classes.
+     *
      * @param cache
      *            the cache to be sorted
      *
-     * @return <code>true</code> if the cache holds the necessary data to be compared meaningfully
+     * @return {@code true} if the cache holds the necessary data to be compared meaningfully
      */
-    @SuppressWarnings("static-method")
     protected boolean canCompare(final Geocache cache) {
         return true;
     }
@@ -57,5 +62,10 @@ abstract class AbstractCacheComparator implements CacheComparator {
      *         cache2.
      */
     protected abstract int compareCaches(final Geocache cache1, final Geocache cache2);
+
+    @Override
+    public boolean isAutoManaged() {
+        return false;
+    }
 
 }

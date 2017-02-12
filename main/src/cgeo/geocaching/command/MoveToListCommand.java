@@ -1,16 +1,15 @@
 package cgeo.geocaching.command;
 
-import cgeo.geocaching.DataStore;
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
+import cgeo.geocaching.list.AbstractList;
 import cgeo.geocaching.list.StoredList;
-
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-
-import rx.functions.Action1;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.storage.DataStore;
+import cgeo.geocaching.utils.functions.Action1;
 
 import android.app.Activity;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.util.Collection;
 
@@ -19,7 +18,7 @@ public abstract class MoveToListCommand extends AbstractCachesCommand {
     private final int currentListId;
     private int newListId;
 
-    protected MoveToListCommand(final Activity context, @NonNull final Collection<Geocache> caches, final int currentListId) {
+    protected MoveToListCommand(@NonNull final Activity context, @NonNull final Collection<Geocache> caches, final int currentListId) {
         super(context, caches, R.string.command_move_caches_progress);
         this.currentListId = currentListId;
     }
@@ -33,19 +32,24 @@ public abstract class MoveToListCommand extends AbstractCachesCommand {
             @Override
             public void call(final Integer newListId) {
                 MoveToListCommand.this.newListId = newListId;
-                MoveToListCommand.super.execute();
+                final AbstractList list = AbstractList.getListById(newListId);
+                if (list != null) {
+                    final String newListName = list.getTitle();
+                    setProgressMessage(getContext().getString(R.string.command_move_caches_progress, newListName));
+                    MoveToListCommand.super.execute();
+                }
             }
         }, true, currentListId);
     }
 
     @Override
     protected void doCommand() {
-        DataStore.moveToList(getCaches(), newListId);
+        DataStore.moveToList(getCaches(), currentListId, newListId);
     }
 
     @Override
     protected void undoCommand() {
-        DataStore.moveToList(getCaches(), currentListId);
+        DataStore.moveToList(getCaches(), newListId, currentListId);
     }
 
     @Override
@@ -54,4 +58,9 @@ public abstract class MoveToListCommand extends AbstractCachesCommand {
         final int size = getCaches().size();
         return getContext().getResources().getQuantityString(R.plurals.command_move_caches_result, size, size);
     }
+
+    protected final int getNewListId() {
+        return newListId;
+    }
+
 }

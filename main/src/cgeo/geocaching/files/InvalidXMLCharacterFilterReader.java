@@ -10,8 +10,7 @@ import java.io.Reader;
  * Filter reader which can filter out invalid XML characters and character references.
  *
  */
-public class InvalidXMLCharacterFilterReader extends FilterReader
-{
+public class InvalidXMLCharacterFilterReader extends FilterReader {
 
     public InvalidXMLCharacterFilterReader(final Reader in) {
         super(in);
@@ -24,7 +23,7 @@ public class InvalidXMLCharacterFilterReader extends FilterReader
      * and returns decreased value of the original read method. So after last
      * valid character there will be some unused chars in the buffer.
      *
-     * @return Number of read valid characters or <code>-1</code> if end of the
+     * @return Number of read valid characters or {@code -1} if end of the
      *         underling reader was reached.
      */
     @Override
@@ -56,8 +55,7 @@ public class InvalidXMLCharacterFilterReader extends FilterReader
                                 final int value;
                                 if (StringUtils.startsWith(numberString, "x")) {
                                     value = Integer.parseInt(numberString.substring(1), 16);
-                                }
-                                else {
+                                } else {
                                     value = Integer.parseInt(numberString);
                                 }
                                 if (!isValidXMLChar((char) value)) {

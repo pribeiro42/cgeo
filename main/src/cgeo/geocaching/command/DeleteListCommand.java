@@ -1,15 +1,15 @@
 package cgeo.geocaching.command;
 
-import cgeo.geocaching.DataStore;
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
 import cgeo.geocaching.SearchResult;
 import cgeo.geocaching.enumerations.CacheType;
 import cgeo.geocaching.enumerations.LoadFlags;
 import cgeo.geocaching.list.StoredList;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.storage.DataStore;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import android.app.Activity;
 
@@ -21,7 +21,7 @@ public abstract class DeleteListCommand extends AbstractCommand {
     private Set<String> geocodes;
     private String listName;
 
-    protected DeleteListCommand(final @NonNull Activity context, final int listId) {
+    protected DeleteListCommand(@NonNull final Activity context, final int listId) {
         super(context);
         this.listId = listId;
     }
@@ -46,7 +46,7 @@ public abstract class DeleteListCommand extends AbstractCommand {
         new StoredList(newListId, listName, 0);
 
         final Set<Geocache> caches = DataStore.loadCaches(geocodes, LoadFlags.LOAD_CACHE_OR_DB);
-        DataStore.moveToList(caches, newListId);
+        DataStore.addToList(caches, newListId);
     }
 
     @Override

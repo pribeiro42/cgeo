@@ -1,22 +1,10 @@
 package cgeo.geocaching.utils;
 
 import cgeo.geocaching.CgeoApplication;
-import cgeo.geocaching.Image;
 import cgeo.geocaching.R;
-import cgeo.geocaching.compatibility.Compatibility;
+import cgeo.geocaching.models.Image;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-
-import rx.Observable;
-import rx.Scheduler.Worker;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action0;
-import rx.functions.Action1;
-
+import android.app.Application;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -29,6 +17,8 @@ import android.graphics.drawable.Drawable;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Environment;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.text.Html;
 import android.text.Html.ImageGetter;
 import android.util.Base64;
@@ -53,6 +43,13 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.functions.Consumer;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+
 public final class ImageUtils {
     private static final int[] ORIENTATIONS = {
             ExifInterface.ORIENTATION_ROTATE_90,
@@ -65,7 +62,7 @@ public final class ImageUtils {
 
     // Images whose URL contains one of those patterns will not be available on the Images tab
     // for opening into an external application.
-    private final static String[] NO_EXTERNAL = { "geocheck.org" };
+    private static final String[] NO_EXTERNAL = { "geocheck.org" };
 
     private ImageUtils() {
         // Do not let this class be instantiated, this is a utility class.
@@ -80,7 +77,7 @@ public final class ImageUtils {
      */
     @NonNull
     public static BitmapDrawable scaleBitmapToFitDisplay(@NonNull final Bitmap image) {
-        final Point displaySize = Compatibility.getDisplaySize();
+        final Point displaySize = DisplayUtils.getDisplaySize();
         final int maxWidth = displaySize.x - 25;
         final int maxHeight = displaySize.y - 25;
         return scaleBitmapTo(image, maxWidth, maxHeight);
@@ -95,7 +92,7 @@ public final class ImageUtils {
      */
     @Nullable
     public static Bitmap readAndScaleImageToFitDisplay(@NonNull final String filename) {
-        final Point displaySize = Compatibility.getDisplaySize();
+        final Point displaySize = DisplayUtils.getDisplaySize();
         // Restrict image size to 800 x 800 to prevent OOM on tablets
         final int maxWidth = Math.min(displaySize.x - 25, MAX_DISPLAY_IMAGE_XY);
         final int maxHeight = Math.min(displaySize.y - 25, MAX_DISPLAY_IMAGE_XY);
@@ -116,7 +113,7 @@ public final class ImageUtils {
      */
     @NonNull
     private static BitmapDrawable scaleBitmapTo(@NonNull final Bitmap image, final int maxWidth, final int maxHeight) {
-        final CgeoApplication app = CgeoApplication.getInstance();
+        final Application app = CgeoApplication.getInstance();
         Bitmap result = image;
         int width = image.getWidth();
         int height = image.getHeight();
@@ -175,13 +172,15 @@ public final class ImageUtils {
         if (image == null) {
             return null;
         }
-        final BitmapDrawable scaledImage = scaleBitmapTo(image, maxXY, maxXY);
+
         final File tempImageFile = getOutputImageFile();
         if (tempImageFile == null) {
             Log.e("ImageUtils.readScaleAndWriteImage: unable to write scaled image");
             return null;
         }
         final String uploadFilename = tempImageFile.getPath();
+
+        final BitmapDrawable scaledImage = scaleBitmapTo(image, maxXY, maxXY);
         storeBitmap(scaledImage.getBitmap(), Bitmap.CompressFormat.JPEG, 75, uploadFilename);
         return uploadFilename;
     }
@@ -244,11 +243,9 @@ public final class ImageUtils {
         // between applications and persist after your app has been uninstalled.
 
         // Create the storage directory if it does not exist
-        if (!mediaStorageDir.exists()) {
-            if (!FileUtils.mkdirs(mediaStorageDir)) {
-                Log.e("ImageUtils.getOutputImageFile: cannot create media storage directory");
-                return null;
-            }
+        if (!mediaStorageDir.exists() && !FileUtils.mkdirs(mediaStorageDir)) {
+            Log.e("ImageUtils.getOutputImageFile: cannot create media storage directory");
+            return null;
         }
 
         // Create a media file name
@@ -324,7 +321,7 @@ public final class ImageUtils {
 
     /**
      * Add images present in the HTML description to the existing collection.
-     *  @param images a collection of images
+     * @param images a collection of images
      * @param geocode the common title for images in the description
      * @param htmlText the HTML description to be parsed, can be repeated
      */
@@ -360,20 +357,19 @@ public final class ImageUtils {
      * elements arrived in the meantime) and ensures that the view is uploaded only once all the queued requests have
      * been handled.
      */
-    public static class ContainerDrawable extends BitmapDrawable implements Action1<Drawable> {
-        final private static Object lock = new Object(); // Used to lock the queue to determine if a refresh needs to be scheduled
-        final private static LinkedBlockingQueue<ImmutablePair<ContainerDrawable, Drawable>> REDRAW_QUEUE = new LinkedBlockingQueue<>();
-        final private static Set<TextView> VIEWS = new HashSet<>();  // Modified only on the UI thread, from redrawQueuedDrawables
-        final private static Worker UI_WORKER = AndroidSchedulers.mainThread().createWorker();
-        final private static Action0 REDRAW_QUEUED_DRAWABLES = new Action0() {
+    public static class ContainerDrawable extends BitmapDrawable implements Consumer<Drawable> {
+        private static final Object lock = new Object(); // Used to lock the queue to determine if a refresh needs to be scheduled
+        private static final LinkedBlockingQueue<ImmutablePair<ContainerDrawable, Drawable>> REDRAW_QUEUE = new LinkedBlockingQueue<>();
+        private static final Set<TextView> VIEWS = new HashSet<>();  // Modified only on the UI thread, from redrawQueuedDrawables
+        private static final Runnable REDRAW_QUEUED_DRAWABLES = new Runnable() {
             @Override
-            public void call() {
+            public void run() {
                 redrawQueuedDrawables();
             }
         };
 
         private Drawable drawable;
-        final protected WeakReference<TextView> viewRef;
+        protected final WeakReference<TextView> viewRef;
 
         @SuppressWarnings("deprecation")
         public ContainerDrawable(@NonNull final TextView view, final Observable<? extends Drawable> drawableObservable) {
@@ -391,15 +387,15 @@ public final class ImageUtils {
         }
 
         @Override
-        public final void call(final Drawable newDrawable) {
+        public final void accept(final Drawable newDrawable) {
             final boolean needsRedraw;
             synchronized (lock) {
-                // Check for emptyness inside the call to match the behaviour in redrawQueuedDrawables().
+                // Check for emptiness inside the call to match the behaviour in redrawQueuedDrawables().
                 needsRedraw = REDRAW_QUEUE.isEmpty();
                 REDRAW_QUEUE.add(ImmutablePair.of(this, newDrawable));
             }
             if (needsRedraw) {
-                UI_WORKER.schedule(REDRAW_QUEUED_DRAWABLES);
+                AndroidSchedulers.mainThread().scheduleDirect(REDRAW_QUEUED_DRAWABLES);
             }
         }
 
@@ -443,7 +439,7 @@ public final class ImageUtils {
     /**
      * Image that automatically scales to fit a line of text in the containing {@link TextView}.
      */
-    public final static class LineHeightContainerDrawable extends ContainerDrawable {
+    public static final class LineHeightContainerDrawable extends ContainerDrawable {
         public LineHeightContainerDrawable(@NonNull final TextView view, final Observable<? extends Drawable> drawableObservable) {
             super(view, drawableObservable);
         }

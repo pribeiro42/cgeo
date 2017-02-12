@@ -1,15 +1,19 @@
 package cgeo.calendar;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.net.Uri;
 import android.os.Build;
 
 public final class Compatibility {
 
-    private final static int SDK_VERSION = Build.VERSION.SDK_INT;
-    private final static boolean IS_LEVEL_8 = SDK_VERSION >= 8;
-    private final static boolean IS_LEVEL_14 = SDK_VERSION >= 14;
+    private static final int SDK_VERSION = Build.VERSION.SDK_INT;
+    private static final boolean IS_LEVEL_8 = SDK_VERSION >= 8;
+    private static final boolean IS_LEVEL_14 = SDK_VERSION >= 14;
+
+    private Compatibility() {
+        // utility class
+    }
 
     @NonNull
     public static Uri getCalendarProviderURI() {

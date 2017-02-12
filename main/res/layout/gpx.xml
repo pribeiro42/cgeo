@@ -10,10 +10,11 @@
     <Button
         android:id="@+id/select_dir"
         style="@style/button_full"
-        android:visibility="gone" />
+        android:visibility="gone"
+        tools:visibility="visible"/>
 
-    <ListView
-        android:id="@android:id/list"
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/list"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
         android:layout_margin="0dip"

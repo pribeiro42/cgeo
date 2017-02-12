@@ -4,43 +4,41 @@ import cgeo.geocaching.CgeoApplication;
 import cgeo.geocaching.R;
 import cgeo.geocaching.filter.SizeFilter.Factory;
 
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-
 import android.content.res.Resources;
+import android.support.annotation.NonNull;
+import android.support.annotation.StringRes;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * singleton registry of all available filter components
  *
  */
 public class FilterRegistry {
-    private final List<FactoryEntry> registry = new ArrayList<>();
-    private static Resources res;
-
     static class FactoryEntry {
         private final String name;
-        private final @NonNull Class<? extends IFilterFactory> filterFactory;
+        @NonNull private final Class<? extends IFilterFactory> filterFactory;
 
-        public FactoryEntry(final String name, final @NonNull Class<? extends IFilterFactory> filterFactory) {
+        FactoryEntry(final String name, @NonNull final Class<? extends IFilterFactory> filterFactory) {
             this.name = name;
             this.filterFactory = filterFactory;
         }
 
-        @Override
-        public String toString() {
-            return name;
+        public Class<? extends IFilterFactory> getFactory() {
+            return filterFactory;
         }
 
         public String getName() {
             return name;
         }
 
-        public Class<? extends IFilterFactory> getFactory() {
-            return filterFactory;
+        @Override
+        public String toString() {
+            return name;
         }
     }
 
@@ -52,8 +50,9 @@ public class FilterRegistry {
         return SingletonHolder.INSTANCE;
     }
 
+    private final List<FactoryEntry> registry = new ArrayList<>();
+
     private FilterRegistry() {
-        res = CgeoApplication.getInstance().getResources();
         register(R.string.caches_filter_type, TypeFilter.Factory.class);
         register(R.string.caches_filter_size, SizeFilter.Factory.class);
         register(R.string.cache_terrain, TerrainFilter.Factory.class);
@@ -67,8 +66,8 @@ public class FilterRegistry {
         register(R.string.caches_filter_personal_data, PersonalDataFilterFactory.class);
     }
 
-    private void register(final int resourceId, final @NonNull Class<? extends IFilterFactory> factoryClass) {
-        registry.add(new FactoryEntry(res.getString(resourceId), factoryClass));
+    public List<FactoryEntry> getFactories() {
+        return Collections.unmodifiableList(registry);
     }
 
     public String getFactoryName(final Class<Factory> factoryClass) {
@@ -80,7 +79,8 @@ public class FilterRegistry {
         return StringUtils.EMPTY;
     }
 
-    public List<FactoryEntry> getFactories() {
-        return Collections.unmodifiableList(registry);
+    private void register(@StringRes final int resourceId, @NonNull final Class<? extends IFilterFactory> factoryClass) {
+        final Resources res = CgeoApplication.getInstance().getResources();
+        registry.add(new FactoryEntry(res.getString(resourceId), factoryClass));
     }
 }

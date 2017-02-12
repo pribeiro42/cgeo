@@ -8,27 +8,22 @@ import java.util.Locale;
 
 public class Units {
 
+    private Units() {
+        // utility class
+    }
+
     public static ImmutablePair<Double, String> scaleDistance(final double distanceKilometers) {
-        double distance;
-        final String units;
         if (Settings.useImperialUnits()) {
-            distance = distanceKilometers / IConversion.MILES_TO_KILOMETER;
-            if (distance >= 0.1) {
-                units = "mi";
-            } else {
-                distance *= 5280;
-                units = "ft";
+            final double distanceMiles = distanceKilometers / IConversion.MILES_TO_KILOMETER;
+            if (distanceMiles >= 0.1) {
+                return new ImmutablePair<>(distanceMiles, "mi");
             }
+            return new ImmutablePair<>(distanceMiles * 5280, "ft");
+        } else if (distanceKilometers >= 1) {
+            return new ImmutablePair<>(distanceKilometers, "km");
         } else {
-            if (distanceKilometers >= 1) {
-                distance = distanceKilometers;
-                units = "km";
-            } else {
-                distance = distanceKilometers * 1000;
-                units = "m";
-            }
+            return new ImmutablePair<>(distanceKilometers * 1000, "m");
         }
-        return new ImmutablePair<>(distance, units);
     }
 
     public static String getDistanceFromKilometers(final Float distanceKilometers) {

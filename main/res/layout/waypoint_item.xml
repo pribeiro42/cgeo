@@ -44,7 +44,7 @@
                 android:focusable="false"
                 android:textColor="?text_color"
                 android:textSize="18sp"
-                tools:text="Description of the Cache with a lot of small words so the an incorrect"/>
+                tools:text="Description of the waypoint with a lot of small words so that an incorrect layout should easily be noticed"/>
 
             <TextView
                 android:id="@+id/info"
@@ -52,16 +52,16 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="left"
                 android:layout_marginLeft="12dp"
-                android:ellipsize="marquee"
+                android:ellipsize="end"
                 android:focusable="false"
                 android:lines="1"
                 android:scrollHorizontally="true"
-                android:singleLine="true"
                 android:textColor="?text_color_headline"
                 android:textSize="14sp"
                 android:visibility="gone"
                 tools:visiblity="visible"
-                tools:text="Info"/>
+                tools:text="Info"
+                android:maxLines="1" />
         </LinearLayout>
     </RelativeLayout>
 
@@ -71,19 +71,20 @@
         android:layout_height="wrap_content"
         android:layout_gravity="left"
         android:layout_marginLeft="12dp"
-        android:ellipsize="marquee"
+        android:ellipsize="end"
         android:focusable="false"
         android:lines="1"
         android:scrollHorizontally="true"
-        android:singleLine="true"
         android:textColor="?text_color_headline"
         android:textSize="14sp"
         android:visibility="gone"
         tools:visiblity="visible"
-        tools:text="1.2.3.4.5N 6.7.8.9.10S"/>
+        tools:text="1.2.3.4.5N 6.7.8.9.10S"
+        android:maxLines="1" />
 
     <TextView
         android:id="@+id/note"
+        android:autoLink="all"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_marginLeft="12dp"
@@ -93,6 +94,19 @@
         android:visibility="gone"
         tools:visiblity="visible"
         tools:text="Note"/>
+
+    <TextView
+        android:id="@+id/user_note"
+        android:autoLink="all"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="12dp"
+        android:focusable="false"
+        android:textColor="?text_color"
+        android:textSize="14sp"
+        android:visibility="gone"
+        tools:visiblity="visible"
+        tools:text="User Note"/>
 
     <View
         style="@style/separator_horizontal"

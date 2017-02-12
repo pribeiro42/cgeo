@@ -1,17 +1,18 @@
 package cgeo.calendar;
 
-import org.eclipse.jdt.annotation.NonNull;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.Gravity;
 import android.widget.Toast;
+
+import org.apache.commons.io.IOUtils;
 
 public final class CalendarActivity extends Activity {
     static final String LOG_TAG = "cgeo.calendar";
@@ -90,7 +91,7 @@ public final class CalendarActivity extends Activity {
 
         Cursor cursor = null;
         try {
-            final String[] projection = new String[]{"_id", "displayName"};
+            final String[] projection = {"_id", "displayName"};
             cursor = getContentResolver().query(calendarProvider, projection, "selected=1", null, null);
 
             if (cursor == null) {
@@ -118,14 +119,12 @@ public final class CalendarActivity extends Activity {
                 }
             } while (cursor.moveToNext());
         } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
+            IOUtils.closeQuietly(cursor);
         }
         return calendars;
     }
 
-    public final void showToast(final int res) {
+    public void showToast(final int res) {
         final String text = getResources().getString(res);
         final Toast toast = Toast.makeText(this, text, Toast.LENGTH_LONG);
 

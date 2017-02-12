@@ -2,12 +2,12 @@ package cgeo.geocaching.sorting;
 
 import cgeo.geocaching.R;
 import cgeo.geocaching.utils.Log;
-
-import org.eclipse.jdt.annotation.NonNull;
-
-import rx.functions.Action1;
+import cgeo.geocaching.utils.TextUtils;
+import cgeo.geocaching.utils.functions.Action1;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
+import android.support.annotation.StringRes;
 import android.support.v4.view.ActionProvider;
 import android.view.MenuItem;
 import android.view.MenuItem.OnMenuItemClickListener;
@@ -25,7 +25,7 @@ import java.util.Comparator;
 public class SortActionProvider extends ActionProvider implements OnMenuItemClickListener {
 
     private static final int MENU_GROUP = 1;
-    private final Context mContext;
+    private final Context context;
     private final ArrayList<ComparatorEntry> registry = new ArrayList<>(20);
     /**
      * Callback triggered on selecting a new sort order.
@@ -43,7 +43,7 @@ public class SortActionProvider extends ActionProvider implements OnMenuItemClic
         private final String name;
         private final Class<? extends CacheComparator> cacheComparator;
 
-        public ComparatorEntry(final String name, final Class<? extends CacheComparator> cacheComparator) {
+        ComparatorEntry(final String name, final Class<? extends CacheComparator> cacheComparator) {
             this.name = name;
             this.cacheComparator = cacheComparator;
         }
@@ -54,14 +54,20 @@ public class SortActionProvider extends ActionProvider implements OnMenuItemClic
         }
     }
 
-
+    /**
+     * Creates a new instance. ActionProvider classes should always implement a
+     * constructor that takes a single Context parameter for inflating from menu XML.
+     *
+     * @param context
+     *            Context for accessing resources.
+     */
     public SortActionProvider(final Context context) {
         super(context);
-        mContext = context;
+        this.context = context;
     }
 
-    private void register(final int resourceId, final Class<? extends CacheComparator> comparatorClass) {
-        registry.add(new ComparatorEntry(mContext.getString(resourceId), comparatorClass));
+    private void register(@StringRes final int resourceId, final Class<? extends CacheComparator> comparatorClass) {
+        registry.add(new ComparatorEntry(context.getString(resourceId), comparatorClass));
     }
 
     private void registerComparators() {
@@ -92,24 +98,24 @@ public class SortActionProvider extends ActionProvider implements OnMenuItemClic
 
             @Override
             public int compare(final ComparatorEntry lhs, final ComparatorEntry rhs) {
-                return lhs.name.compareToIgnoreCase(rhs.name);
+                return TextUtils.COLLATOR.compare(lhs.name, rhs.name);
             }
         });
     }
 
     @Override
-    public View onCreateActionView(){
+    public View onCreateActionView() {
         // must return null, otherwise onPrepareSubMenu is not called
         return null;
     }
 
     @Override
-    public boolean hasSubMenu(){
+    public boolean hasSubMenu() {
         return true;
     }
 
     @Override
-    public void onPrepareSubMenu(final SubMenu subMenu){
+    public void onPrepareSubMenu(final SubMenu subMenu) {
         subMenu.clear();
         registerComparators();
         for (int i = 0; i < registry.size(); i++) {
@@ -120,18 +126,15 @@ public class SortActionProvider extends ActionProvider implements OnMenuItemClic
                 if (comparatorEntry.cacheComparator == null) {
                     menuItem.setChecked(true);
                 }
-            }
-            else {
-                if (selection.getClass().equals(comparatorEntry.cacheComparator)) {
-                    menuItem.setChecked(true);
-                }
+            } else if (selection.getClass().equals(comparatorEntry.cacheComparator)) {
+                menuItem.setChecked(true);
             }
         }
         subMenu.setGroupCheckable(MENU_GROUP, true, true);
     }
 
     @Override
-    public boolean onMenuItemClick(final MenuItem item){
+    public boolean onMenuItemClick(final MenuItem item) {
         callListener(registry.get(item.getItemId()).cacheComparator);
         return true;
     }
@@ -140,8 +143,7 @@ public class SortActionProvider extends ActionProvider implements OnMenuItemClic
         try {
             if (cacheComparator == null) {
                 onClickListener.call(null);
-            }
-            else {
+            } else {
                 final CacheComparator comparator = cacheComparator.newInstance();
                 onClickListener.call(comparator);
             }
@@ -150,7 +152,7 @@ public class SortActionProvider extends ActionProvider implements OnMenuItemClic
         }
     }
 
-    public void setClickListener(final @NonNull Action1<CacheComparator> onClickListener) {
+    public void setClickListener(@NonNull final Action1<CacheComparator> onClickListener) {
         this.onClickListener = onClickListener;
     }
 

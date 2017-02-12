@@ -3,6 +3,10 @@ package cgeo.geocaching.connector.oc;
 import cgeo.geocaching.R;
 import cgeo.geocaching.connector.oc.OkapiError.OkapiErrors;
 
+import android.support.annotation.NonNull;
+
+import android.support.annotation.StringRes;
+
 public class UserInfo {
 
     public enum UserInfoStatus {
@@ -13,12 +17,14 @@ public class UserInfo {
         INVALID_TIMESTAMP(R.string.init_login_popup_invalid_timestamp),
         INVALID_TOKEN(R.string.init_login_popup_invalid_token);
 
+        @StringRes
         public final int resId;
 
-        UserInfoStatus(final int resId) {
+        UserInfoStatus(@StringRes final int resId) {
             this.resId = resId;
         }
 
+        @NonNull
         public static UserInfoStatus getFromOkapiError(final OkapiErrors result) {
             switch (result) {
                 case NO_ERROR:
@@ -33,16 +39,17 @@ public class UserInfo {
         }
     }
 
-    private final String name;
+    @NonNull private final String name;
     private final int finds;
-    private final UserInfoStatus status;
+    @NonNull private final UserInfoStatus status;
 
-    UserInfo(final String name, final int finds, final UserInfoStatus status) {
+    UserInfo(@NonNull final String name, final int finds, @NonNull final UserInfoStatus status) {
         this.name = name;
         this.finds = finds;
         this.status = status;
     }
 
+    @NonNull
     public String getName() {
         return name;
     }
@@ -51,6 +58,7 @@ public class UserInfo {
         return finds;
     }
 
+    @NonNull
     public UserInfoStatus getStatus() {
         return status;
     }

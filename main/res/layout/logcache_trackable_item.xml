@@ -29,28 +29,32 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="left"
-            android:ellipsize="marquee"
+            android:ellipsize="end"
             android:gravity="left"
             android:lines="1"
             android:scrollHorizontally="true"
-            android:singleLine="true"
             android:textColor="?text_color"
             android:textIsSelectable="false"
-            android:textSize="14sp" />
+            android:textSize="14sp"
+            tools:text="name"
+            android:maxLines="1" />
 
         <TextView
             android:id="@+id/trackcode"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="left"
-            android:ellipsize="marquee"
+            android:ellipsize="end"
             android:gravity="left"
             android:lines="1"
+            android:maxLines="1"
             android:scrollHorizontally="true"
-            android:singleLine="true"
             android:textColor="?text_color"
             android:textIsSelectable="false"
-            android:textSize="14sp" />
+            android:textSize="10sp"
+            tools:ignore="SmallSp"
+            tools:text="tracking code" />
+
     </LinearLayout>
 
     <TextView
@@ -59,13 +63,14 @@
         android:layout_height="wrap_content"
         android:layout_gravity="right"
         android:layout_weight="1"
-        android:ellipsize="marquee"
+        android:ellipsize="end"
         android:gravity="right"
         android:lines="1"
         android:scrollHorizontally="true"
-        android:singleLine="true"
         android:textColor="?text_color"
         android:textIsSelectable="false"
-        android:textSize="14sp" />
+        android:textSize="14sp"
+        tools:text="action"
+        android:maxLines="1" />
 
 </LinearLayout>

@@ -1,23 +1,21 @@
 package cgeo.geocaching.export;
 
-import cgeo.geocaching.DataStore;
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.LogEntry;
-import cgeo.geocaching.Trackable;
-import cgeo.geocaching.Waypoint;
 import cgeo.geocaching.enumerations.CacheAttribute;
 import cgeo.geocaching.enumerations.LoadFlags;
 import cgeo.geocaching.location.Geopoint;
+import cgeo.geocaching.log.LogEntry;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Trackable;
+import cgeo.geocaching.models.Waypoint;
+import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.storage.DataStore;
 import cgeo.geocaching.utils.Log;
 import cgeo.geocaching.utils.SynchronizedDateFormat;
 import cgeo.geocaching.utils.TextUtils;
 import cgeo.geocaching.utils.XmlUtils;
 import cgeo.org.kxml2.io.KXmlSerializer;
 
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.CharEncoding;
-import org.apache.commons.lang3.StringUtils;
-import org.xmlpull.v1.XmlSerializer;
+import android.support.annotation.NonNull;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -28,10 +26,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.CharEncoding;
+import org.apache.commons.lang3.StringUtils;
+import org.xmlpull.v1.XmlSerializer;
+
 public final class GpxSerializer {
-
-
-
 
     private static final SynchronizedDateFormat dateFormatZ = new SynchronizedDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
 
@@ -65,13 +65,13 @@ public final class GpxSerializer {
     private ProgressListener progressListener;
     private final XmlSerializer gpx = new KXmlSerializer();
 
-    protected static interface ProgressListener {
+    protected interface ProgressListener {
 
         void publishProgress(int countExported);
 
     }
 
-    public void writeGPX(final List<String> allGeocodesIn, final Writer writer, final ProgressListener progressListener) throws IOException {
+    public void writeGPX(@NonNull final List<String> allGeocodesIn, final Writer writer, final ProgressListener progressListener) throws IOException {
         // create a copy of the geocode list, as we need to modify it, but it might be immutable
         final List<String> allGeocodes = new ArrayList<>(allGeocodesIn);
 
@@ -102,7 +102,7 @@ public final class GpxSerializer {
         gpx.endDocument();
     }
 
-    private void exportBatch(final XmlSerializer gpx, final Collection<String> geocodesOfBatch) throws IOException {
+    private void exportBatch(final XmlSerializer gpx, @NonNull final Collection<String> geocodesOfBatch) throws IOException {
         final Set<Geocache> caches = DataStore.loadCaches(geocodesOfBatch, LoadFlags.LOAD_ALL_DB_ONLY);
         for (final Geocache cache : caches) {
             if (cache == null) {
@@ -122,33 +122,18 @@ public final class GpxSerializer {
                 XmlUtils.simpleText(gpx, NS_GPX, "time", dateFormatZ.format(hiddenDate));
             }
 
-            XmlUtils.multipleTexts(gpx, NS_GPX,
-                    "name", cache.getGeocode(),
-                    "desc", cache.getName(),
-                    "url", cache.getUrl(),
-                    "urlname", cache.getName(),
-                    "sym", cache.isFound() ? "Geocache Found" : "Geocache",
-                    "type", "Geocache|" + cache.getType().pattern);
+            XmlUtils.multipleTexts(gpx, NS_GPX, "name", cache.getGeocode(), "desc", cache.getName(), "url", cache.getUrl(), "urlname", cache.getName(), "sym", cache.isFound() && Settings.getIncludeFoundStatus() ? "Geocache Found" : "Geocache", "type", "Geocache|" + cache.getType().pattern);
 
             gpx.startTag(NS_GROUNDSPEAK, "cache");
             gpx.attribute("", "id", cache.getCacheId());
             gpx.attribute("", "available", !cache.isDisabled() ? "True" : "False");
             gpx.attribute("", "archived", cache.isArchived() ? "True" : "False");
 
-            XmlUtils.multipleTexts(gpx, NS_GROUNDSPEAK,
-                    "name", cache.getName(),
-                    "placed_by", cache.getOwnerDisplayName(),
-                    "owner", cache.getOwnerUserId(),
-                    "type", cache.getType().pattern,
- "container", cache.getSize().id);
+            XmlUtils.multipleTexts(gpx, NS_GROUNDSPEAK, "name", cache.getName(), "placed_by", cache.getOwnerDisplayName(), "owner", cache.getOwnerUserId(), "type", cache.getType().pattern, "container", cache.getSize().id);
 
             writeAttributes(cache);
 
-            XmlUtils.multipleTexts(gpx, NS_GROUNDSPEAK,
-                    "difficulty", Float.toString(cache.getDifficulty()),
-                    "terrain", Float.toString(cache.getTerrain()),
-                    "country", getCountry(cache),
- "state", getState(cache));
+            XmlUtils.multipleTexts(gpx, NS_GROUNDSPEAK, "difficulty", integerIfPossible(cache.getDifficulty()), "terrain", integerIfPossible(cache.getTerrain()), "country", getCountry(cache), "state", getState(cache));
 
             gpx.startTag(NS_GROUNDSPEAK, "short_description");
             gpx.attribute("", "html", TextUtils.containsHtml(cache.getShortDescription()) ? "True" : "False");
@@ -180,13 +165,9 @@ public final class GpxSerializer {
         }
     }
 
-    private void writeGsakExtensions(final Geocache cache) throws IOException {
+    private void writeGsakExtensions(@NonNull final Geocache cache) throws IOException {
         gpx.startTag(NS_GSAK, "wptExtension");
-        XmlUtils.multipleTexts(gpx, NS_GSAK,
- "Watch", gpxBoolean(cache.isOnWatchlist()),
-                "IsPremium", gpxBoolean(cache.isPremiumMembersOnly()),
-                "FavPoints", Integer.toString(cache.getFavoritePoints()),
-                "GcNote", StringUtils.trimToEmpty(cache.getPersonalNote()));
+        XmlUtils.multipleTexts(gpx, NS_GSAK, "Watch", gpxBoolean(cache.isOnWatchlist()), "IsPremium", gpxBoolean(cache.isPremiumMembersOnly()), "FavPoints", Integer.toString(cache.getFavoritePoints()), "GcNote", StringUtils.trimToEmpty(cache.getPersonalNote()));
         gpx.endTag(NS_GSAK, "wptExtension");
     }
 
@@ -198,7 +179,7 @@ public final class GpxSerializer {
         return boolFlag ? "true" : "false";
     }
 
-    private void writeWaypoints(final Geocache cache) throws IOException {
+    private void writeWaypoints(@NonNull final Geocache cache) throws IOException {
         final List<Waypoint> waypoints = cache.getWaypoints();
         final List<Waypoint> ownWaypoints = new ArrayList<>(waypoints.size());
         final List<Waypoint> originWaypoints = new ArrayList<>(waypoints.size());
@@ -237,7 +218,7 @@ public final class GpxSerializer {
     /**
      * Writes one waypoint entry for cache waypoint.
      */
-    private void writeCacheWaypoint(final Waypoint wp) throws IOException {
+    private void writeCacheWaypoint(@NonNull final Waypoint wp) throws IOException {
         final Geopoint coords = wp.getCoords();
         // TODO: create some extension to GPX to include waypoint without coords
         if (coords != null) {
@@ -245,12 +226,7 @@ public final class GpxSerializer {
             gpx.attribute("", "lat", Double.toString(coords.getLatitude()));
             gpx.attribute("", "lon", Double.toString(coords.getLongitude()));
             final String waypointTypeGpx = wp.getWaypointType().gpx;
-            XmlUtils.multipleTexts(gpx, NS_GPX,
-                    "name", wp.getGpxId(),
-                    "cmt", wp.getNote(),
-                    "desc", wp.getName(),
-                    "sym", waypointTypeGpx,
-                    "type", "Waypoint|" + waypointTypeGpx);
+            XmlUtils.multipleTexts(gpx, NS_GPX, "name", wp.getGpxId(), "cmt", wp.getNote(), "desc", wp.getName(), "sym", waypointTypeGpx, "type", "Waypoint|" + waypointTypeGpx);
             // add parent reference the GSAK-way
             gpx.startTag(NS_GSAK, "wptExtension");
             gpx.startTag(NS_GSAK, "Parent");
@@ -272,7 +248,7 @@ public final class GpxSerializer {
         }
     }
 
-    private void writeLogs(final Geocache cache) throws IOException {
+    private void writeLogs(@NonNull final Geocache cache) throws IOException {
         final List<LogEntry> logs = cache.getLogs();
         if (logs.isEmpty()) {
             return;
@@ -283,9 +259,7 @@ public final class GpxSerializer {
             gpx.startTag(NS_GROUNDSPEAK, "log");
             gpx.attribute("", "id", Integer.toString(log.id));
 
-            XmlUtils.multipleTexts(gpx, NS_GROUNDSPEAK,
-                    "date", dateFormatZ.format(new Date(log.date)),
-                    "type", log.type.type);
+            XmlUtils.multipleTexts(gpx, NS_GROUNDSPEAK, "date", dateFormatZ.format(new Date(log.date)), "type", log.getType().type);
 
             gpx.startTag(NS_GROUNDSPEAK, "finder");
             gpx.attribute("", "id", "");
@@ -308,7 +282,7 @@ public final class GpxSerializer {
         gpx.endTag(NS_GROUNDSPEAK, "logs");
     }
 
-    private void writeTravelBugs(final Geocache cache) throws IOException {
+    private void writeTravelBugs(@NonNull final Geocache cache) throws IOException {
         final List<Trackable> inventory = cache.getInventory();
         if (CollectionUtils.isEmpty(inventory)) {
             return;
@@ -328,7 +302,7 @@ public final class GpxSerializer {
         gpx.endTag(NS_GROUNDSPEAK, "travelbugs");
     }
 
-    private void writeAttributes(final Geocache cache) throws IOException {
+    private void writeAttributes(@NonNull final Geocache cache) throws IOException {
         if (cache.getAttributes().isEmpty()) {
             return;
         }
@@ -352,11 +326,11 @@ public final class GpxSerializer {
         gpx.endTag(NS_GROUNDSPEAK, "attributes");
     }
 
-    protected static String getState(final Geocache cache) {
+    static String getState(@NonNull final Geocache cache) {
         return getLocationPart(cache, 0);
     }
 
-    private static String getLocationPart(final Geocache cache, final int partIndex) {
+    private static String getLocationPart(@NonNull final Geocache cache, final int partIndex) {
         final String location = cache.getLocation();
         if (StringUtils.contains(location, ", ")) {
             final String[] parts = StringUtils.split(location, ',');
@@ -367,12 +341,19 @@ public final class GpxSerializer {
         return StringUtils.EMPTY;
     }
 
-    protected static String getCountry(final Geocache cache) {
+    static String getCountry(@NonNull final Geocache cache) {
         final String country = getLocationPart(cache, 1);
         if (StringUtils.isNotEmpty(country)) {
             return country;
         }
         // fall back to returning everything, but only for the country
         return cache.getLocation();
+    }
+
+    private static String integerIfPossible(final double value) {
+        if (value == (long) value) {
+            return String.format(Locale.ENGLISH, "%d", (long) value);
+        }
+        return String.format(Locale.ENGLISH, "%s", value);
     }
 }

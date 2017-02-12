@@ -1,14 +1,11 @@
 package cgeo.geocaching;
 
-import butterknife.ButterKnife;
-import butterknife.Bind;
-
 import cgeo.geocaching.files.AbstractFileListActivity;
+import cgeo.geocaching.files.FileSelectionListAdapter;
 import cgeo.geocaching.files.IFileSelectionView;
-import cgeo.geocaching.files.LocalStorage;
 import cgeo.geocaching.files.SimpleDirChooser;
 import cgeo.geocaching.settings.Settings;
-import cgeo.geocaching.ui.FileSelectionListAdapter;
+import cgeo.geocaching.storage.LocalStorage;
 
 import org.openintents.intents.FileManagerIntents;
 
@@ -23,17 +20,20 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import butterknife.BindView;
+import butterknife.ButterKnife;
+
 public class SelectMapfileActivity extends AbstractFileListActivity<FileSelectionListAdapter> implements IFileSelectionView {
+
+    private static final int REQUEST_DIRECTORY = 1;
+
+    @BindView(R.id.select_dir) protected Button selectDirectory;
+
+    private String mapFile;
 
     public SelectMapfileActivity() {
         super("map");
     }
-
-    @Bind(R.id.select_dir) protected Button selectDirectory;
-
-    private String mapFile;
-
-    private final static int REQUEST_DIRECTORY = 1;
 
     @Override
     public void onCreate(final Bundle savedInstanceState) {
@@ -61,7 +61,7 @@ public class SelectMapfileActivity extends AbstractFileListActivity<FileSelectio
                 }
             }
         });
-        selectDirectory.setText(getResources().getString(R.string.simple_dir_chooser_title));
+        selectDirectory.setText(getString(R.string.simple_dir_chooser_title));
         selectDirectory.setVisibility(View.VISIBLE);
     }
 

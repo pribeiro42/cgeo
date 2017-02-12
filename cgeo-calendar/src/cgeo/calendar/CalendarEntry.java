@@ -1,14 +1,13 @@
 package cgeo.calendar;
 
-import cgeo.geocaching.utils.Log;
-
 import org.apache.commons.lang3.CharEncoding;
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.net.Uri;
 import android.text.Html;
 import android.text.Spanned;
 import android.text.style.ImageSpan;
+import android.util.Log;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -33,7 +32,7 @@ class CalendarEntry {
     @NonNull
     private final Uri uri;
 
-    public CalendarEntry(@NonNull final Uri uri) {
+    CalendarEntry(@NonNull final Uri uri) {
         this.uri = uri;
         this.shortDesc = getParameter(ICalendar.PARAM_SHORT_DESC);
         this.hiddenDate = getParameter(ICalendar.PARAM_HIDDEN_DATE);
@@ -46,7 +45,7 @@ class CalendarEntry {
             try {
                 this.startTimeMinutes = Integer.parseInt(startTime);
             } catch (final NumberFormatException e) {
-                Log.e("CalendarEntry creation", e);
+                Log.e("cgeo", "CalendarEntry creation", e);
             }
         }
     }
@@ -60,7 +59,7 @@ class CalendarEntry {
             }
             return URLDecoder.decode(param, CharEncoding.UTF_8).trim();
         } catch (final UnsupportedEncodingException e) {
-            Log.e("CalendarEntry.getParameter", e);
+            Log.e("cgeo", "CalendarEntry.getParameter", e);
         }
         return "";
     }
@@ -90,7 +89,7 @@ class CalendarEntry {
     }
 
     /**
-     * @return <code>Date</code> based on hidden date. Time is set to 00:00:00.
+     * @return {@code Date} based on hidden date. Time is set to 00:00:00.
      */
     @NonNull
     protected Date parseDate() {

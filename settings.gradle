@@ -1,6 +1,5 @@
 include ':mapswithme-api'
 include ':showcaseview'
 include ':main'
-//include ':cgeo-calendar'
-//include ':cgeo-contacts'
-
+include ':cgeo-calendar'
+include ':cgeo-contacts'

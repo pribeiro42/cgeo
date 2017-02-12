@@ -1,16 +1,16 @@
 package cgeo.geocaching.filter;
 
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
+import cgeo.geocaching.models.Geocache;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.os.Parcel;
 import android.os.Parcelable;
 
 class TrackablesFilter extends AbstractFilter {
 
-    public TrackablesFilter() {
+    TrackablesFilter() {
         super(R.string.caches_filter_track);
     }
 

@@ -1,20 +1,20 @@
 package cgeo.geocaching.connector.trackable;
 
-import cgeo.geocaching.AbstractLoggingActivity;
 import cgeo.geocaching.CgeoApplication;
 import cgeo.geocaching.R;
-import cgeo.geocaching.Trackable;
 import cgeo.geocaching.connector.UserAction;
 import cgeo.geocaching.connector.gc.GCConnector;
 import cgeo.geocaching.connector.gc.GCParser;
 import cgeo.geocaching.enumerations.Loaders;
+import cgeo.geocaching.log.AbstractLoggingActivity;
+import cgeo.geocaching.models.Trackable;
 import cgeo.geocaching.network.Network;
 import cgeo.geocaching.network.Parameters;
 import cgeo.geocaching.settings.Settings;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -24,7 +24,7 @@ public class TravelBugConnector extends AbstractTrackableConnector {
     /**
      * TB codes really start with TB1, there is no padding or minimum length
      */
-    private final static Pattern PATTERN_TB_CODE = Pattern.compile("(TB[0-9A-Z]+)|([0-9A-Z]{6})", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PATTERN_TB_CODE = Pattern.compile("(TB[0-9A-Z&&[^ILOSU]]+)|([0-9A-Z]{6})|([0-9]{5})", Pattern.CASE_INSENSITIVE);
 
     @Override
     public int getPreferenceActivity() {
@@ -33,7 +33,7 @@ public class TravelBugConnector extends AbstractTrackableConnector {
 
     @Override
     public boolean canHandleTrackable(@Nullable final String geocode) {
-        return PATTERN_TB_CODE.matcher(geocode).matches() && !StringUtils.startsWithIgnoreCase(geocode, "GC");
+        return PATTERN_TB_CODE.matcher(geocode).matches();
     }
 
     @NonNull
@@ -45,11 +45,11 @@ public class TravelBugConnector extends AbstractTrackableConnector {
     @Override
     @NonNull
     public String getUrl(@NonNull final Trackable trackable) {
-        return "http://www.geocaching.com//track/details.aspx?tracker=" + trackable.getGeocode();
+        return getHostUrl() + "//track/details.aspx?tracker=" + trackable.getGeocode();
     }
 
     static String getTravelbugViewstates(final String guid) {
-        return Network.getResponseData(Network.getRequest("http://www.geocaching.com/track/log.aspx", new Parameters("wid", guid)));
+        return Network.getResponseData(Network.getRequest("https://www.geocaching.com/track/log.aspx", new Parameters("wid", guid)));
     }
 
     @Override
@@ -84,8 +84,8 @@ public class TravelBugConnector extends AbstractTrackableConnector {
     }
 
     @Override
-    public @Nullable
-    String getTrackableCodeFromUrl(@NonNull final String url) {
+    @Nullable
+    public String getTrackableCodeFromUrl(@NonNull final String url) {
         // coord.info URLs
         final String code1 = StringUtils.substringAfterLast(url, "coord.info/");
         if (canHandleTrackable(code1)) {
@@ -119,5 +119,17 @@ public class TravelBugConnector extends AbstractTrackableConnector {
     @Override
     public AbstractTrackableLoggingManager getTrackableLoggingManager(final AbstractLoggingActivity activity) {
         return new TravelBugLoggingManager(activity);
+    }
+
+    @Override
+    @NonNull
+    public String getHost() {
+        return "www.geocaching.com";
+    }
+
+    @Override
+    @NonNull
+    public String getTestUrl() {
+        return "https://" + getHost() + "/play";
     }
 }

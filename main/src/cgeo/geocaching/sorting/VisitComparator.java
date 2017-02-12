@@ -1,6 +1,6 @@
 package cgeo.geocaching.sorting;
 
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.models.Geocache;
 
 /**
  * sorts caches by last visited date
@@ -8,7 +8,7 @@ import cgeo.geocaching.Geocache;
  */
 public class VisitComparator extends AbstractCacheComparator {
 
-    final static public VisitComparator singleton = new VisitComparator();
+    public static final VisitComparator singleton = new VisitComparator();
 
     @Override
     protected int compareCaches(final Geocache cache1, final Geocache cache2) {

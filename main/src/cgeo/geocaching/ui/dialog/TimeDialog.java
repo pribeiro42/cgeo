@@ -4,6 +4,7 @@ import android.app.Dialog;
 import android.app.TimePickerDialog;
 import android.app.TimePickerDialog.OnTimeSetListener;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v4.app.DialogFragment;
 import android.text.format.DateFormat;
 import android.widget.TimePicker;
@@ -12,11 +13,11 @@ import java.util.Calendar;
 
 public class TimeDialog extends DialogFragment implements OnTimeSetListener {
 
-    public interface TimeDialogParent {
-        abstract public void setTime(final Calendar date);
-    }
-
     private Calendar date;
+
+    public interface TimeDialogParent {
+        void setTime(final Calendar date);
+    }
 
     public static TimeDialog getInstance(final Calendar date) {
         final TimeDialog timeDialog = new TimeDialog();
@@ -27,6 +28,7 @@ public class TimeDialog extends DialogFragment implements OnTimeSetListener {
     }
 
     @Override
+    @NonNull
     public Dialog onCreateDialog(final Bundle savedInstanceState) {
 
         final Bundle args = getArguments();

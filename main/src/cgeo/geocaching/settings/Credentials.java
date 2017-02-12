@@ -1,13 +1,14 @@
 package cgeo.geocaching.settings;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 /**
  * Hold valid or invalid credential information (login and password).
  */
 public class Credentials {
+    public static final Credentials EMPTY = new Credentials(StringUtils.EMPTY, StringUtils.EMPTY);
 
     private final String username;
     private final String password;
@@ -49,7 +50,7 @@ public class Credentials {
      *         if credentials are invalid
      */
     @NonNull
-    public String getUsername() {
+    public String getUserName() {
         guard();
         return username;
     }

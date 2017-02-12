@@ -1,36 +1,37 @@
 package cgeo.geocaching.connector.gc;
 
-import cgeo.geocaching.DataStore;
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.Image;
-import cgeo.geocaching.LogCacheActivity;
+import android.os.Bundle;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.Loader;
+import android.widget.CheckBox;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.List;
+
 import cgeo.geocaching.R;
-import cgeo.geocaching.TrackableLog;
 import cgeo.geocaching.activity.ActivityMixin;
 import cgeo.geocaching.connector.AbstractLoggingManager;
 import cgeo.geocaching.connector.ImageResult;
 import cgeo.geocaching.connector.LogResult;
 import cgeo.geocaching.enumerations.Loaders;
-import cgeo.geocaching.enumerations.LogType;
 import cgeo.geocaching.enumerations.StatusCode;
 import cgeo.geocaching.loaders.UrlLoader;
+import cgeo.geocaching.log.LogCacheActivity;
+import cgeo.geocaching.log.LogType;
+import cgeo.geocaching.log.TrackableLog;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Image;
 import cgeo.geocaching.network.Parameters;
 import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.storage.DataStore;
 import cgeo.geocaching.utils.Log;
 import cgeo.geocaching.utils.TextUtils;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-
-import android.os.Bundle;
-import android.support.v4.app.LoaderManager;
-import android.support.v4.content.Loader;
-
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.List;
 
 class GCLoggingManager extends AbstractLoggingManager implements LoaderManager.LoaderCallbacks<String> {
 
@@ -41,6 +42,7 @@ class GCLoggingManager extends AbstractLoggingManager implements LoaderManager.L
     @NonNull private List<TrackableLog> trackables = Collections.emptyList();
     private List<LogType> possibleLogTypes;
     private boolean hasLoaderError = true;
+    private int premFavcount;
 
     GCLoggingManager(final LogCacheActivity activity, final Geocache cache) {
         this.activity = activity;
@@ -51,10 +53,11 @@ class GCLoggingManager extends AbstractLoggingManager implements LoaderManager.L
     @Override
     public Loader<String> onCreateLoader(final int arg0, final Bundle arg1) {
         if (!Settings.hasGCCredentials()) { // allow offline logging
-            ActivityMixin.showToast(activity, activity.getResources().getString(R.string.err_login));
+            ActivityMixin.showToast(activity, activity.getString(R.string.err_login));
             return null;
         }
-        return new UrlLoader(activity.getBaseContext(), "http://www.geocaching.com/seek/log.aspx", new Parameters("ID", cache.getCacheId()));
+        activity.onLoadStarted();
+        return new UrlLoader(activity.getBaseContext(), "https://www.geocaching.com/seek/log.aspx", new Parameters("ID", cache.getCacheId()));
     }
 
     @Override
@@ -76,7 +79,7 @@ class GCLoggingManager extends AbstractLoggingManager implements LoaderManager.L
                     Log.w("Could not acquire GUID from log page for " + cache.getGeocode());
                 }
             }
-
+            premFavcount = GCParser.getFavoritePoints(page);
             hasLoaderError = possibleLogTypes.isEmpty();
         }
 
@@ -98,15 +101,20 @@ class GCLoggingManager extends AbstractLoggingManager implements LoaderManager.L
     public LogResult postLog(@NonNull final LogType logType, @NonNull final Calendar date, @NonNull final String log, @Nullable final String logPassword, @NonNull final List<TrackableLog> trackableLogs) {
 
         try {
+            final CheckBox favCheck = (CheckBox) activity.findViewById(R.id.favorite_check);
             final ImmutablePair<StatusCode, String> postResult = GCParser.postLog(cache.getGeocode(), cache.getCacheId(), viewstates, logType,
-                    date.get(Calendar.YEAR), (date.get(Calendar.MONTH) + 1), date.get(Calendar.DATE),
-                    log, trackableLogs);
+                    date.get(Calendar.YEAR), date.get(Calendar.MONTH) + 1, date.get(Calendar.DATE),
+                    log, trackableLogs, favCheck.isChecked());
 
             if (postResult.left == StatusCode.NO_ERROR) {
                 if (logType == LogType.TEMP_DISABLE_LISTING) {
                     cache.setDisabled(true);
                 } else if (logType == LogType.ENABLE_LISTING) {
                     cache.setDisabled(false);
+                }
+                if (favCheck.isChecked()) {
+                    cache.setFavorite(true);
+                    cache.setFavoritePoints(cache.getFavoritePoints() + 1);
                 }
             }
             return new LogResult(postResult.left, postResult.right);
@@ -152,6 +160,11 @@ class GCLoggingManager extends AbstractLoggingManager implements LoaderManager.L
             return Collections.emptyList();
         }
         return possibleLogTypes;
+    }
+
+    @Override
+    public int getPremFavoritePoints() {
+        return hasLoaderError ? 0 : premFavcount;
     }
 
 }

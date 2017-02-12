@@ -1,5 +1,8 @@
 package cgeo.geocaching.utils;
 
+import cgeo.geocaching.CgeoApplication;
+import cgeo.geocaching.R;
+
 import org.xml.sax.XMLReader;
 
 import android.text.Editable;
@@ -24,20 +27,22 @@ public class UnknownTagsHandler implements TagHandler {
     @Override
     public void handleTag(final boolean opening, final String tag, final Editable output,
             final XMLReader xmlReader) {
-        if (tag.equalsIgnoreCase("strike") || tag.equals("s")) {
+        if ("strike".equalsIgnoreCase(tag) || "s".equals(tag)) {
             handleStrike(opening, output);
-        } else if (tag.equalsIgnoreCase("table")) {
+        } else if ("table".equalsIgnoreCase(tag)) {
             handleProblematic();
-        } else if (tag.equalsIgnoreCase("td")) {
+        } else if ("td".equalsIgnoreCase(tag)) {
             handleTd(opening, output);
-        } else if (tag.equalsIgnoreCase("tr")) {
+        } else if ("tr".equalsIgnoreCase(tag)) {
             handleTr(opening, output);
-        } else if (tag.equalsIgnoreCase("pre")) {
+        } else if ("pre".equalsIgnoreCase(tag)) {
             handleProblematic();
-        } else if (tag.equalsIgnoreCase("ol")) {
+        } else if ("ol".equalsIgnoreCase(tag)) {
             handleOl(opening);
-        } else if (tag.equalsIgnoreCase("li")) {
+        } else if ("li".equalsIgnoreCase(tag)) {
             handleLi(opening, output);
+        } else if ("hr".equalsIgnoreCase(tag)) {
+            handleHr(opening, output);
         }
     }
 
@@ -45,11 +50,9 @@ public class UnknownTagsHandler implements TagHandler {
         final int length = output.length();
         if (opening) {
             strikePos = length;
-        } else {
-            if (strikePos > UNDEFINED_POSITION) {
-                output.setSpan(new StrikethroughSpan(), strikePos, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                strikePos = UNDEFINED_POSITION;
-            }
+        } else if (strikePos > UNDEFINED_POSITION) {
+            output.setSpan(new StrikethroughSpan(), strikePos, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            strikePos = UNDEFINED_POSITION;
         }
     }
 
@@ -63,10 +66,8 @@ public class UnknownTagsHandler implements TagHandler {
 
     private void handleTd(final boolean opening, final Editable output) {
         // insert bar for each table column, see https://en.wikipedia.org/wiki/Box-drawing_characters
-        if (opening) {
-            if (countCells++ > 0) {
-                output.append('┆');
-            }
+        if (opening && countCells++ > 0) {
+            output.append(CgeoApplication.getInstance().getString(R.string.triple_dash_vertical));
         }
     }
 
@@ -96,6 +97,19 @@ public class UnknownTagsHandler implements TagHandler {
             } else {
                 output.append("\n  • ");
             }
+        }
+    }
+
+    private static void handleHr(final boolean opening, final Editable output) {
+        if (opening) {
+            // If we are in the middle of a line, add a line feed.
+            if (output.length() > 0 && output.charAt(output.length() - 1) != '\n') {
+                output.append('\n');
+            }
+            final int start = output.length();
+            output.append("                              ");
+            output.setSpan(new StrikethroughSpan(), start, output.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            output.append("\n");
         }
     }
 

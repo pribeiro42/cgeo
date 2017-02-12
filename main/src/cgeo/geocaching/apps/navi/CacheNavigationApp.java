@@ -1,16 +1,18 @@
 package cgeo.geocaching.apps.navi;
 
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.apps.App;
-
-import org.eclipse.jdt.annotation.NonNull;
+import cgeo.geocaching.models.Geocache;
 
 import android.app.Activity;
+import android.support.annotation.NonNull;
 
 /**
  * interface for navigation to a cache
  *
  */
 public interface CacheNavigationApp extends App {
-    void navigate(final @NonNull Activity activity, @NonNull final Geocache cache);
+    /**
+     * Navigate to the given cache. The caller will assert that cache.getCoords() is not null.
+     */
+    void navigate(@NonNull final Activity activity, @NonNull final Geocache cache);
 }

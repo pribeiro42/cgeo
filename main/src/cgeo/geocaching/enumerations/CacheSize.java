@@ -3,8 +3,9 @@ package cgeo.geocaching.enumerations;
 import cgeo.geocaching.CgeoApplication;
 import cgeo.geocaching.R;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import org.apache.commons.lang3.StringUtils;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -42,11 +43,16 @@ public enum CacheSize {
     }
 
     @NonNull
-    final private static Map<String, CacheSize> FIND_BY_ID = new HashMap<>();
+    private static final Map<String, CacheSize> FIND_BY_ID = new HashMap<>();
     static {
         for (final CacheSize cs : values()) {
             FIND_BY_ID.put(cs.id.toLowerCase(Locale.US), cs);
-            FIND_BY_ID.put(cs.ocSize2.toLowerCase(Locale.US), cs);
+            if (StringUtils.isNotBlank(cs.ocSize2)) {
+                FIND_BY_ID.put(cs.ocSize2.toLowerCase(Locale.US), cs);
+            }
+            // also add the size icon names of the website
+            final String imageName = StringUtils.replace(StringUtils.lowerCase(cs.id), " ", "_");
+            FIND_BY_ID.put(imageName, cs);
         }
         // add medium as additional string for Regular
         FIND_BY_ID.put("medium", REGULAR);
@@ -92,6 +98,6 @@ public enum CacheSize {
 
     @NonNull
     public final String getL10n() {
-        return CgeoApplication.getInstance().getBaseContext().getResources().getString(stringId);
+        return CgeoApplication.getInstance().getBaseContext().getString(stringId);
     }
 }

@@ -16,15 +16,15 @@ public final class Log {
 
     private static final String TAG = "cgeo";
 
-    private static final class StackTraceDebug extends RuntimeException {
-        final static private long serialVersionUID = 27058374L;
-    }
-
     /**
      * The debug flag is cached here so that we don't need to access the settings every time we have to evaluate it.
      */
     private static boolean isDebug = true;
     private static boolean first = true;
+
+    private static final class StackTraceDebug extends RuntimeException {
+        private static final long serialVersionUID = 27058374L;
+    }
 
     private Log() {
         // utility class
@@ -43,7 +43,9 @@ public final class Log {
     }
 
     private static String addThreadInfo(final String msg) {
-        return new StringBuilder("[").append(Thread.currentThread().getName()).append("] ").append(msg).toString();
+        final String threadName = Thread.currentThread().getName();
+        final String shortName = threadName.startsWith("OkHttp") ? "OkHttp" : threadName;
+        return new StringBuilder("[").append(shortName).append("] ").append(msg).toString();
     }
 
     public static void v(final String msg) {
@@ -92,10 +94,19 @@ public final class Log {
 
     public static void e(final String msg) {
         android.util.Log.e(TAG, addThreadInfo(msg));
+        if (isDebug) {
+            throw new RuntimeException("Aborting on Log.e()");
+        }
     }
 
     public static void e(final String msg, final Throwable t) {
         android.util.Log.e(TAG, addThreadInfo(msg), t);
+        if (isDebug) {
+            if (t instanceof RuntimeException) {
+                throw (RuntimeException) t;
+            }
+            throw new RuntimeException("Aborting on Log.e()", t);
+        }
     }
 
     /**

@@ -1,6 +1,6 @@
 package cgeo.calendar;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.content.Intent;
 import android.text.Html;
@@ -8,13 +8,13 @@ import android.text.Html;
 import java.util.Date;
 
 /**
- * Add cache to calendar in Android versions 4.0 and greater using <code>Intent</code>. This does not require
+ * Add cache to calendar in Android versions 4.0 and greater using {@code Intent}. This does not require
  * calendar permissions.
  * TODO Does this work with apps other than default calendar app?
  */
 class AddEntryLevel14 extends AbstractAddEntry {
 
-    public AddEntryLevel14(@NonNull final CalendarEntry entry, @NonNull final CalendarActivity activity) {
+    AddEntryLevel14(@NonNull final CalendarEntry entry, @NonNull final CalendarActivity activity) {
         super(entry, activity);
     }
 

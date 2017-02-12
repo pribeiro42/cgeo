@@ -12,14 +12,24 @@ import android.view.SubMenu;
 
 import java.util.List;
 
+/**
+ * action provider showing a sub menu with all navigation possibilities for a complete list of caches
+ */
 public class ListNavigationSelectionActionProvider extends AbstractMenuActionProvider {
-
-    public static interface Callback {
-        void onListNavigationSelected(final CacheListApp app);
-    }
 
     private Callback callback;
 
+    public interface Callback {
+        void onListNavigationSelected(final CacheListApp app);
+    }
+
+    /**
+     * Creates a new instance. ActionProvider classes should always implement a
+     * constructor that takes a single Context parameter for inflating from menu XML.
+     *
+     * @param context
+     *            Context for accessing resources.
+     */
     public ListNavigationSelectionActionProvider(final Context context) {
         super(context);
     }

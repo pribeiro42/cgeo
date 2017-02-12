@@ -1,16 +1,9 @@
 package cgeo.geocaching;
 
-import butterknife.Bind;
-import butterknife.ButterKnife;
-
 import cgeo.geocaching.network.StatusUpdater;
 import cgeo.geocaching.network.StatusUpdater.Status;
+import cgeo.geocaching.utils.AndroidRxUtils;
 import cgeo.geocaching.utils.Log;
-
-import rx.Subscription;
-import rx.android.app.AppObservable;
-import rx.functions.Action1;
-import rx.subscriptions.Subscriptions;
 
 import android.content.Intent;
 import android.content.res.Resources;
@@ -24,23 +17,32 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import butterknife.Unbinder;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.functions.Consumer;
+
 public class StatusFragment extends Fragment {
 
-    protected @Bind(R.id.status_icon) ImageView statusIcon;
-    protected @Bind(R.id.status_message) TextView statusMessage;
+    @BindView(R.id.status_icon)
+    protected ImageView statusIcon;
+    @BindView(R.id.status_message)
+    protected TextView statusMessage;
 
-    private Subscription statusSubscription = Subscriptions.empty();
+    private CompositeDisposable statusSubscription = new CompositeDisposable();
+    private Unbinder unbinder;
 
     @Override
     public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
         super.onCreateView(inflater, container, savedInstanceState);
         final ViewGroup statusGroup = (ViewGroup) inflater.inflate(R.layout.status, container, false);
-        ButterKnife.bind(this, statusGroup);
-        statusSubscription = AppObservable.bindSupportFragment(this, StatusUpdater.LATEST_STATUS)
-                .subscribe(new Action1<Status>() {
+        unbinder = ButterKnife.bind(this, statusGroup);
+        statusSubscription.add(AndroidRxUtils.bindFragment(this, StatusUpdater.LATEST_STATUS)
+                .subscribe(new Consumer<Status>() {
                     @Override
-                    public void call(final Status status) {
-                        if (status == null) {
+                    public void accept(final Status status) {
+                        if (status == Status.NO_STATUS) {
                             statusGroup.setVisibility(View.INVISIBLE);
                             return;
                         }
@@ -83,15 +85,15 @@ public class StatusFragment extends Fragment {
                             statusGroup.setClickable(false);
                         }
                     }
-                });
+                }));
         return statusGroup;
     }
 
     @Override
     public void onDestroyView() {
-        statusSubscription.unsubscribe();
+        statusSubscription.clear();
         super.onDestroyView();
-        ButterKnife.unbind(this);
+        unbinder.unbind();
     }
 
 }

@@ -1,9 +1,5 @@
 package cgeo.contacts;
 
-import org.apache.commons.lang3.CharEncoding;
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -15,6 +11,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.BaseColumns;
 import android.provider.ContactsContract;
+import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
 import android.view.Gravity;
@@ -24,6 +21,10 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.CharEncoding;
+import org.apache.commons.lang3.StringUtils;
 
 public final class ContactsActivity extends Activity {
     static final String LOG_TAG = "cgeo.contacts";
@@ -66,8 +67,7 @@ public final class ContactsActivity extends Activity {
 
         if (contacts.size() > 1) {
             selectContact(contacts);
-        }
-        else {
+        } else {
             final int contactId = contacts.get(0).first;
             openContactAndFinish(contactId);
         }
@@ -110,10 +110,10 @@ public final class ContactsActivity extends Activity {
     }
 
     @NonNull
-    private List<Pair<Integer, String>> getContacts(final @NonNull String searchName, final Uri uri, final @NonNull String idColumnName, final @NonNull String selectionColumnName, final boolean like) {
-        final String[] projection = new String[] { idColumnName, selectionColumnName };
+    private List<Pair<Integer, String>> getContacts(@NonNull final String searchName, final Uri uri, @NonNull final String idColumnName, @NonNull final String selectionColumnName, final boolean like) {
+        final String[] projection = { idColumnName, selectionColumnName, ContactsContract.Contacts.DISPLAY_NAME };
         final String selection = selectionColumnName + (like ? " LIKE" : " =") + " ? COLLATE NOCASE";
-        final String[] selectionArgs = new String[] { like ? "%" + searchName + "%" : searchName };
+        final String[] selectionArgs = { like ? "%" + searchName + "%" : searchName };
         Cursor cursor = null;
 
         final List<Pair<Integer, String>> result = new ArrayList<>();
@@ -122,19 +122,19 @@ public final class ContactsActivity extends Activity {
             while (cursor != null && cursor.moveToNext()) {
                 final int foundId = cursor.getInt(0);
                 final String foundName = cursor.getString(1);
-                result.add(new Pair<>(foundId, foundName));
+                final String displayName = cursor.getString(2);
+                result.add(new Pair<>(foundId, StringUtils.isNotEmpty(displayName) &&
+                        !StringUtils.equalsIgnoreCase(foundName, displayName) ? foundName + " (" + displayName + ")" : foundName));
             }
         } catch (final Exception e) {
             Log.e(LOG_TAG, "ContactsActivity.getContactId", e);
         } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
+            IOUtils.closeQuietly(cursor);
         }
         return result;
     }
 
-    public final void showToast(final String text) {
+    public void showToast(final String text) {
         final Toast toast = Toast.makeText(this, text, Toast.LENGTH_LONG);
 
         toast.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, 0, 100);

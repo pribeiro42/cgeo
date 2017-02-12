@@ -1,15 +1,14 @@
 package cgeo.geocaching.files;
 
-import cgeo.geocaching.DataStore;
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
 import cgeo.geocaching.SearchResult;
-import cgeo.geocaching.StaticMapsProvider;
 import cgeo.geocaching.enumerations.LoadFlags;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.settings.Settings;
-import cgeo.geocaching.utils.CancellableHandler;
+import cgeo.geocaching.staticmaps.StaticMapsProvider;
+import cgeo.geocaching.storage.DataStore;
+import cgeo.geocaching.utils.DisposableHandler;
 import cgeo.geocaching.utils.Log;
-import cgeo.geocaching.utils.RxUtils;
 
 import android.os.Handler;
 
@@ -20,9 +19,9 @@ import java.util.concurrent.CancellationException;
 abstract class AbstractImportThread extends Thread {
     final int listId;
     final Handler importStepHandler;
-    final CancellableHandler progressHandler;
+    final DisposableHandler progressHandler;
 
-    protected AbstractImportThread(final int listId, final Handler importStepHandler, final CancellableHandler progressHandler) {
+    protected AbstractImportThread(final int listId, final Handler importStepHandler, final DisposableHandler progressHandler) {
         this.listId = listId;
         this.importStepHandler = importStepHandler;
         this.progressHandler = progressHandler;
@@ -31,7 +30,7 @@ abstract class AbstractImportThread extends Thread {
     @Override
     public void run() {
         try {
-            importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_START));
+            importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_START, getSourceDisplayName()));
             final Collection<Geocache> caches = doImport();
             Log.i("Imported successfully " + caches.size() + " caches.");
 
@@ -39,7 +38,7 @@ abstract class AbstractImportThread extends Thread {
             // Do not put imported caches into the cachecache. That would consume lots of memory for no benefit.
 
             if (Settings.isStoreOfflineMaps() || Settings.isStoreOfflineWpMaps()) {
-                importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_STORE_STATIC_MAPS, R.string.gpx_import_store_static_maps, search.getCount()));
+                importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_STORE_STATIC_MAPS, R.string.gpx_import_store_static_maps, search.getCount(), getSourceDisplayName()));
                 final boolean finishedWithoutCancel = importStaticMaps(search);
                 // Skip last message if static maps where canceled
                 if (!finishedWithoutCancel) {
@@ -47,7 +46,7 @@ abstract class AbstractImportThread extends Thread {
                 }
             }
 
-            importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_FINISHED, search.getCount(), 0, search));
+            importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_FINISHED, search.getCount(), 0, getSourceDisplayName()));
         } catch (final IOException e) {
             Log.i("Importing caches failed - error reading data: ", e);
             importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_FINISHED_WITH_ERROR, R.string.gpx_import_error_io, 0, e.getLocalizedMessage()));
@@ -56,7 +55,7 @@ abstract class AbstractImportThread extends Thread {
             importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_FINISHED_WITH_ERROR, R.string.gpx_import_error_parser, 0, e.getLocalizedMessage()));
         } catch (final CancellationException ignored) {
             Log.i("Importing caches canceled");
-            importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_CANCELED));
+            importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_CANCELED, getSourceDisplayName()));
         } catch (final Exception e) {
             Log.e("Importing caches failed - unknown error: ", e);
             importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_FINISHED_WITH_ERROR, R.string.gpx_import_error_unexpected, 0, e.getLocalizedMessage()));
@@ -65,18 +64,25 @@ abstract class AbstractImportThread extends Thread {
 
     protected abstract Collection<Geocache> doImport() throws IOException, ParserException;
 
+    /**
+     * Return a user presentable name of the imported source
+     *
+     * @return The import source display name
+     */
+    protected abstract String getSourceDisplayName();
+
     private boolean importStaticMaps(final SearchResult importedCaches) {
         int storedCacheMaps = 0;
         for (final String geocode : importedCaches.getGeocodes()) {
             final Geocache cache = DataStore.loadCache(geocode, LoadFlags.LOAD_WAYPOINTS);
             if (cache != null) {
                 Log.d("GPXImporter.ImportThread.importStaticMaps start downloadMaps for cache " + geocode);
-                RxUtils.waitForCompletion(StaticMapsProvider.downloadMaps(cache));
+                StaticMapsProvider.downloadMaps(cache).blockingAwait();
             } else {
                 Log.d("GPXImporter.ImportThread.importStaticMaps: no data found for " + geocode);
             }
             storedCacheMaps++;
-            if (progressHandler.isCancelled()) {
+            if (progressHandler.isDisposed()) {
                 return false;
             }
             progressHandler.sendMessage(progressHandler.obtainMessage(0, storedCacheMaps, 0));

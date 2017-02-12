@@ -12,7 +12,7 @@ public class LazyInitializedListTest extends TestCase {
     private static final class MockedLazyInitializedList extends LazyInitializedList<String> {
         @Override
         public List<String> call() {
-            return new ArrayList<String>();
+            return new ArrayList<>();
         }
     }
 

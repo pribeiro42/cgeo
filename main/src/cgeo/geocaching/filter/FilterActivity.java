@@ -1,19 +1,5 @@
 package cgeo.geocaching.filter;
 
-import butterknife.ButterKnife;
-import butterknife.Bind;
-
-import cgeo.geocaching.R;
-import cgeo.geocaching.activity.AbstractActionBarActivity;
-import cgeo.geocaching.filter.FilterRegistry.FactoryEntry;
-import cgeo.geocaching.utils.Log;
-
-import org.androidannotations.annotations.EActivity;
-import org.androidannotations.annotations.OptionsItem;
-import org.androidannotations.annotations.OptionsMenu;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
@@ -23,10 +9,23 @@ import android.widget.ExpandableListView.OnChildClickListener;
 import android.widget.LinearLayout;
 import android.widget.SimpleExpandableListAdapter;
 
+import org.androidannotations.annotations.EActivity;
+import org.androidannotations.annotations.OptionsItem;
+import org.androidannotations.annotations.OptionsMenu;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import cgeo.geocaching.R;
+import cgeo.geocaching.activity.AbstractActionBarActivity;
+import cgeo.geocaching.filter.FilterRegistry.FactoryEntry;
+import cgeo.geocaching.utils.Log;
 
 /**
  * Show a filter selection using an {@code ExpandableListView}.
@@ -41,8 +40,8 @@ public class FilterActivity extends AbstractActionBarActivity {
     private static final String KEY_FILTER_NAME = "filterName";
     private static final String KEY_FILTER_GROUP_NAME = "filterGroupName";
 
-    @Bind(R.id.filterList) protected ExpandableListView filterList;
-    @Bind(R.id.filters) protected LinearLayout filtersContainer;
+    @BindView(R.id.filterList) protected ExpandableListView filterList;
+    @BindView(R.id.filters) protected LinearLayout filtersContainer;
 
     @Override
     public void onCreate(final Bundle savedInstanceState) {
@@ -80,7 +79,8 @@ public class FilterActivity extends AbstractActionBarActivity {
         });
     }
 
-    public static @Nullable IFilter getFilterFromPosition(final int groupPosition, final int childPosition) {
+    @Nullable
+    public static IFilter getFilterFromPosition(final int groupPosition, final int childPosition) {
         if (groupPosition < 0 || childPosition < 0) {
             return null;
         }
@@ -124,9 +124,7 @@ public class FilterActivity extends AbstractActionBarActivity {
     private static IFilterFactory createFilterFactory(final Class<? extends IFilterFactory> class1) {
         try {
             return class1.newInstance();
-        } catch (final InstantiationException e) {
-            Log.e("createFilterFactory", e);
-        } catch (final IllegalAccessException e) {
+        } catch (final InstantiationException | IllegalAccessException e) {
             Log.e("createFilterFactory", e);
         }
         return null;

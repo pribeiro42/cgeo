@@ -8,20 +8,15 @@ import cgeo.geocaching.enumerations.LoadFlags.LoadFlag;
 import cgeo.geocaching.enumerations.LoadFlags.SaveFlag;
 import cgeo.geocaching.enumerations.StatusCode;
 import cgeo.geocaching.gcvote.GCVote;
-import cgeo.geocaching.utils.RxUtils;
-
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-
-import rx.Observable;
-import rx.functions.Func0;
-import rx.functions.Func1;
-import rx.functions.Func2;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.storage.DataStore;
+import cgeo.geocaching.utils.AndroidRxUtils;
+import cgeo.geocaching.utils.Log;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,12 +25,20 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
+
+import io.reactivex.Maybe;
+import io.reactivex.Observable;
+import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Function;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 public class SearchResult implements Parcelable {
 
-    final private Set<String> geocodes;
-    final private Set<String> filteredGeocodes;
-    private StatusCode error = null;
+    private final Set<String> geocodes;
+    private final Set<String> filteredGeocodes;
+    @NonNull private StatusCode error = StatusCode.NO_ERROR;
     private String url = "";
     private String[] viewstates = null;
     /**
@@ -44,7 +47,7 @@ public class SearchResult implements Parcelable {
      */
     private int totalCountGC = 0;
 
-    final public static Parcelable.Creator<SearchResult> CREATOR = new Parcelable.Creator<SearchResult>() {
+    public static final Parcelable.Creator<SearchResult> CREATOR = new Parcelable.Creator<SearchResult>() {
         @Override
         public SearchResult createFromParcel(final Parcel in) {
             return new SearchResult(in);
@@ -66,7 +69,7 @@ public class SearchResult implements Parcelable {
     /**
      * Build a new empty search result with an error status.
      */
-    public SearchResult(final StatusCode statusCode) {
+    public SearchResult(@NonNull final StatusCode statusCode) {
         this();
         error = statusCode;
     }
@@ -176,11 +179,12 @@ public class SearchResult implements Parcelable {
         return geocodes.size();
     }
 
+    @NonNull
     public StatusCode getError() {
         return error;
     }
 
-    public void setError(final StatusCode error) {
+    public void setError(@NonNull final StatusCode error) {
         this.error = error;
     }
 
@@ -307,34 +311,39 @@ public class SearchResult implements Parcelable {
 
     /**
      * execute the given connector request in parallel on all active connectors
-     * 
+     *
      * @param connectors
      *            connectors to be considered in request
      * @param func
      *            connector request
      */
     public static <C extends IConnector> SearchResult parallelCombineActive(final Collection<C> connectors,
-                                                                            final Func1<C, SearchResult> func) {
-        return Observable.from(connectors).flatMap(new Func1<C, Observable<SearchResult>>() {
+                                                                            final Function<C, SearchResult> func) {
+        return Observable.fromIterable(connectors).flatMapMaybe(new Function<C, Maybe<SearchResult>>() {
             @Override
-            public Observable<SearchResult> call(final C connector) {
+            public Maybe<SearchResult> apply(final C connector) {
                 if (!connector.isActive()) {
-                    return Observable.<SearchResult> empty();
+                    return Maybe.empty();
                 }
-                return Observable.defer(new Func0<Observable<SearchResult>>() {
+                return Maybe.fromCallable(new Callable<SearchResult>() {
                     @Override
-                    public Observable<SearchResult> call() {
-                        return Observable.just(func.call(connector));
+                    public SearchResult call() throws Exception {
+                        try {
+                            return func.apply(connector);
+                        } catch (final Exception e) {
+                            Log.w("parallelCombineActive: swallowing error from connector " + connector, e);
+                            return null;
+                        }
                     }
-                }).subscribeOn(RxUtils.networkScheduler);
+                }).subscribeOn(AndroidRxUtils.networkScheduler);
             }
-        }).reduce(new SearchResult(), new Func2<SearchResult, SearchResult, SearchResult>() {
+        }).reduce(new SearchResult(), new BiFunction<SearchResult, SearchResult, SearchResult>() {
             @Override
-            public SearchResult call(final SearchResult searchResult, final SearchResult searchResult2) {
+            public SearchResult apply(final SearchResult searchResult, final SearchResult searchResult2) {
                 searchResult.addSearchResult(searchResult2);
                 return searchResult;
             }
-        }).toBlocking().first();
+        }).blockingGet();
     }
 
 }

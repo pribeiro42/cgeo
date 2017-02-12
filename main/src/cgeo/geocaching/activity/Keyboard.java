@@ -1,6 +1,6 @@
 package cgeo.geocaching.activity;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.app.Activity;
 import android.content.Context;
@@ -9,12 +9,12 @@ import android.view.inputmethod.InputMethodManager;
 
 /**
  * Class for hiding/showing the soft keyboard on Android.
- * 
+ *
  */
 public class Keyboard {
     private final Activity activity;
 
-    public Keyboard(final @NonNull Activity activity) {
+    public Keyboard(@NonNull final Activity activity) {
         this.activity = activity;
     }
 

@@ -1,13 +1,7 @@
 package cgeo.geocaching.sensors;
 
+import cgeo.geocaching.utils.AndroidRxUtils;
 import cgeo.geocaching.utils.Log;
-import cgeo.geocaching.utils.RxUtils;
-
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.subscriptions.Subscriptions;
 
 import android.annotation.TargetApi;
 import android.content.Context;
@@ -15,6 +9,10 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 
 public class RotationProvider {
 
@@ -42,11 +40,9 @@ public class RotationProvider {
             Log.w("RotationProvider: no rotation sensor on this device");
             return Observable.error(new RuntimeException("no rotation sensor"));
         }
-        Log.d("RotationProvider: sensor found");
-        final Observable<Float> observable = Observable.create(new OnSubscribe<Float>() {
-
+        final Observable<Float> observable = Observable.create(new ObservableOnSubscribe<Float>() {
             @Override
-            public void call(final Subscriber<? super Float> subscriber) {
+            public void subscribe(final ObservableEmitter<Float> emitter) throws Exception {
                 final SensorEventListener listener = new SensorEventListener() {
 
                     private final float[] rotationMatrix = new float[16];
@@ -71,31 +67,27 @@ public class RotationProvider {
                             }
                         }
                         SensorManager.getOrientation(rotationMatrix, orientation);
-                        subscriber.onNext((float) (orientation[0] * 180 / Math.PI));
+                        emitter.onNext((float) (orientation[0] * 180 / Math.PI));
                     }
 
                     @Override
                     public void onAccuracyChanged(final Sensor sensor, final int accuracy) {
+                        // empty
                     }
 
                 };
                 Log.d("RotationProvider: registering listener");
                 sensorManager.registerListener(listener, rotationSensor, SensorManager.SENSOR_DELAY_NORMAL);
-                subscriber.add(Subscriptions.create(new Action0() {
+                emitter.setDisposable(AndroidRxUtils.disposeOnCallbacksScheduler(new Runnable() {
                     @Override
-                    public void call() {
-                        RxUtils.looperCallbacksWorker.schedule(new Action0() {
-                            @Override
-                            public void call() {
-                                Log.d("RotationProvider: unregistering listener");
-                                sensorManager.unregisterListener(listener, rotationSensor);
-                            }
-                        });
+                    public void run() {
+                        Log.d("RotationProvider: unregistering listener");
+                        sensorManager.unregisterListener(listener, rotationSensor);
                     }
                 }));
             }
         });
-        return observable.subscribeOn(RxUtils.looperCallbacksScheduler).share().onBackpressureLatest();
+        return observable.subscribeOn(AndroidRxUtils.looperCallbacksScheduler).share();
     }
 
     public static boolean hasRotationSensor(final Context context) {

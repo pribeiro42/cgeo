@@ -1,14 +1,10 @@
 package cgeo.geocaching.location;
 
+import junit.framework.TestCase;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cgeo.geocaching.location.Geopoint;
-import cgeo.geocaching.location.GeopointFormatter;
-import cgeo.geocaching.utils.Formatter;
-
-import android.test.AndroidTestCase;
-
-public class GeoPointFormatterTest extends AndroidTestCase {
+public class GeoPointFormatterTest extends TestCase {
 
     public static void testConfluence() {
         // From issue #2624: coordinate is wrong near to a confluence point
@@ -18,18 +14,37 @@ public class GeoPointFormatterTest extends AndroidTestCase {
         final String formatMinute = GeopointFormatter.format(GeopointFormatter.Format.LAT_LON_DECMINUTE_RAW, point);
         assertThat(formatMinute).isEqualTo("N 50° 00.000 E 005° 00.000");
         final String formatSecond = GeopointFormatter.format(GeopointFormatter.Format.LAT_LON_DECSECOND, point).replaceAll(",", ".");
-        assertEquals(formatSecond, "N 50° 00' 00.000\"" + Formatter.SEPARATOR + "E 005° 00' 00.000\"", formatSecond);
+        assertThat(formatSecond).isEqualTo("N 50° 00' 00.000\" · E 005° 00' 00.000\"");
     }
 
     public static void testFormat() {
         // taken from GC30R6G
         final Geopoint point = new Geopoint("N 51° 21.104 E 010° 15.369");
         final String format = GeopointFormatter.format(GeopointFormatter.Format.LAT_LON_DECDEGREE_COMMA, point);
-        assertEquals(format, "51.351733,10.256150", format);
+        assertThat(format).isEqualTo("51.351733,10.256150");
         final String formatMinute = GeopointFormatter.format(GeopointFormatter.Format.LAT_LON_DECMINUTE_RAW, point);
-        assertEquals(formatMinute, "N 51° 21.104 E 010° 15.369", formatMinute);
+        assertThat(formatMinute).isEqualTo("N 51° 21.104 E 010° 15.369");
         final String formatSecond = GeopointFormatter.format(GeopointFormatter.Format.LAT_LON_DECSECOND, point).replaceAll(",", ".");
-        assertEquals(formatSecond, "N 51° 21' 06.240\"" + Formatter.SEPARATOR + "E 010° 15' 22.140\"", formatSecond);
+        assertThat(formatSecond).isEqualTo("N 51° 21' 06.239\" · E 010° 15' 22.140\"");
+    }
+
+    public static void testFormatNeg() {
+        // taken from GC30R6G
+        final Geopoint point = new Geopoint("S 51° 21.104 W 010° 15.369");
+        final String format = GeopointFormatter.format(GeopointFormatter.Format.LAT_LON_DECDEGREE_COMMA, point);
+        assertThat(format).isEqualTo("-51.351733,-10.256150");
+        final String formatMinute = GeopointFormatter.format(GeopointFormatter.Format.LAT_LON_DECMINUTE_RAW, point);
+        assertThat(formatMinute).isEqualTo("S 51° 21.104 W 010° 15.369");
+        final String formatSecond = GeopointFormatter.format(GeopointFormatter.Format.LAT_LON_DECSECOND, point).replaceAll(",", ".");
+        assertThat(formatSecond).isEqualTo("S 51° 21' 06.239\" · W 010° 15' 22.140\"");
+    }
+
+    public static void testReformatForClipboardRemoveMiddleDot() {
+        assertThat(GeopointFormatter.reformatForClipboard("N 10° 12,345 · W 5° 12,345")).isEqualTo("N 10° 12,345 W 5° 12,345");
+    }
+
+    public static void testReformatForClipboardNoMiddleDotToRemove() {
+        assertThat(GeopointFormatter.reformatForClipboard("N 10° 12' 34\" W 5° 12' 34\"")).isEqualTo("N 10° 12' 34\" W 5° 12' 34\"");
     }
 
 }

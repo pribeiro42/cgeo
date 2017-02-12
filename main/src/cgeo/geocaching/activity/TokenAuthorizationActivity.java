@@ -1,22 +1,14 @@
 package cgeo.geocaching.activity;
 
-import butterknife.Bind;
-
 import cgeo.geocaching.Intents;
 import cgeo.geocaching.R;
 import cgeo.geocaching.network.Network;
 import cgeo.geocaching.network.Parameters;
+import cgeo.geocaching.ui.dialog.Dialogs;
+import cgeo.geocaching.utils.AndroidRxUtils;
 import cgeo.geocaching.utils.BundleUtils;
 import cgeo.geocaching.utils.Log;
 import cgeo.geocaching.utils.MatcherWrapper;
-import cgeo.geocaching.utils.RxUtils;
-
-import ch.boye.httpclientandroidlib.HttpResponse;
-
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-
-import rx.functions.Action0;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
@@ -26,6 +18,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.NonNull;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -34,6 +27,10 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import java.util.regex.Pattern;
+
+import butterknife.BindView;
+import okhttp3.Response;
+import org.apache.commons.lang3.StringUtils;
 
 public abstract class TokenAuthorizationActivity extends AbstractActivity {
 
@@ -45,16 +42,15 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
     private static final int ERROR_EXT_MSG = 2;
 
     @NonNull private String urlToken = StringUtils.EMPTY;
-    @NonNull private String urlRegister = StringUtils.EMPTY;
     @NonNull private String fieldUsername = StringUtils.EMPTY;
     @NonNull private String fieldPassword = StringUtils.EMPTY;
 
-    @Bind(R.id.start) protected Button startButton;
-    @Bind(R.id.register) protected Button registerButton;
-    @Bind(R.id.auth_1) protected TextView auth1;
-    @Bind(R.id.auth_2) protected TextView auth2;
-    @Bind(R.id.username) protected EditText usernameEditText;
-    @Bind(R.id.password) protected EditText passwordEditText;
+    @BindView(R.id.start) protected Button startButton;
+    @BindView(R.id.register) protected Button registerButton;
+    @BindView(R.id.auth_1) protected TextView auth1;
+    @BindView(R.id.auth_2) protected TextView auth2;
+    @BindView(R.id.username) protected EditText usernameEditText;
+    @BindView(R.id.password) protected EditText passwordEditText;
 
     private ProgressDialog requestTokenDialog = null;
 
@@ -62,9 +58,7 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
 
         @Override
         public void handleMessage(final Message msg) {
-            if (requestTokenDialog != null && requestTokenDialog.isShowing()) {
-                requestTokenDialog.dismiss();
-            }
+            Dialogs.dismiss(requestTokenDialog);
 
             startButton.setOnClickListener(new StartListener());
             startButton.setEnabled(true);
@@ -93,7 +87,6 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
         final Bundle extras = getIntent().getExtras();
         if (extras != null) {
             urlToken = BundleUtils.getString(extras, Intents.EXTRA_TOKEN_AUTH_URL_TOKEN, urlToken);
-            urlRegister = BundleUtils.getString(extras, Intents.EXTRA_TOKEN_AUTH_URL_REGISTER, urlRegister);
             fieldUsername = BundleUtils.getString(extras, Intents.EXTRA_TOKEN_AUTH_USERNAME, fieldUsername);
             fieldPassword = BundleUtils.getString(extras, Intents.EXTRA_TOKEN_AUTH_PASSWORD, fieldPassword);
         }
@@ -107,9 +100,13 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
         startButton.setOnClickListener(new StartListener());
         enableStartButtonIfReady();
 
-        registerButton.setText(getAuthRegister());
-        registerButton.setEnabled(true);
-        registerButton.setOnClickListener(new RegisterListener());
+        if (StringUtils.isEmpty(getCreateAccountUrl())) {
+            registerButton.setVisibility(View.GONE);
+        } else {
+            registerButton.setText(getAuthRegister());
+            registerButton.setEnabled(true);
+            registerButton.setOnClickListener(new RegisterListener());
+        }
 
         startButton.setText(StringUtils.isBlank(getToken()) ? getAuthStart() : getAuthAgain());
 
@@ -124,24 +121,24 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
     }
 
     protected void requestToken(final String username, final String password) {
-        final String nam = StringUtils.defaultString(username);
-        final String pwd = StringUtils.defaultString(password);
-
         if (StringUtils.isBlank(username) || StringUtils.isBlank(password)) {
             ActivityMixin.showToast(this, R.string.err_missing_auth);
             requestTokenHandler.sendEmptyMessage(NOT_AUTHENTICATED);
             return;
         }
 
+        final String nam = StringUtils.defaultString(username);
+        final String pwd = StringUtils.defaultString(password);
+
         final Parameters params = new Parameters(fieldUsername, nam, fieldPassword, pwd);
-        final HttpResponse response = Network.postRequest(urlToken, params);
 
         int status = NOT_AUTHENTICATED;
         String message = StringUtils.EMPTY;
 
-        if (Network.isSuccess(response)) {
-            final String line = StringUtils.defaultString(Network.getResponseData(response));
-            try {
+        try {
+            final Response response = Network.postRequest(urlToken, params).blockingGet();
+            if (response.isSuccessful()) {
+                final String line = StringUtils.defaultString(Network.getResponseData(response));
                 final MatcherWrapper errorMatcher = new MatcherWrapper(getPatternIsError(), line);
                 final MatcherWrapper tokenMatcher = new MatcherWrapper(getPatternToken(), line);
                 if (errorMatcher.find()) {
@@ -151,12 +148,11 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
                     status = AUTHENTICATED;
                     setToken(tokenMatcher.group(1));
                 }
-            } catch (final Exception e) {
-                Log.e("TokenAuthorizationActivity:", e);
+            } else {
+                message = getExtendedErrorMsg(response);
             }
-
-        } else {
-            message = getExtendedErrorMsg(response);
+        } catch (final Exception e) {
+            Log.e("TokenAuthorizationActivity:", e);
         }
 
         if (StringUtils.isNotBlank(message)) {
@@ -184,9 +180,9 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
             final String username = usernameEditText.getText().toString();
             final String password = passwordEditText.getText().toString();
 
-            RxUtils.networkScheduler.createWorker().schedule(new Action0() {
+            AndroidRxUtils.networkScheduler.scheduleDirect(new Runnable() {
                 @Override
-                public void call() {
+                public void run() {
                     requestToken(username, password);
                 }
             });
@@ -199,7 +195,7 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
         public void onClick(final View view) {
             final Activity activity = TokenAuthorizationActivity.this;
             try {
-                activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(urlRegister)));
+                activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(getCreateAccountUrl())));
             } catch (final ActivityNotFoundException e) {
                 Log.e("Cannot find suitable activity", e);
                 ActivityMixin.showToast(activity, R.string.err_application_no);
@@ -209,18 +205,18 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
 
     // get resources from derived class
 
+    protected abstract String getCreateAccountUrl();
+
     protected abstract void setToken(String token);
 
     protected abstract String getToken();
 
     protected abstract String getAuthTitle();
 
-    @SuppressWarnings("static-method")
     protected Pattern getPatternIsError() {
         return PATTERN_IS_ERROR;
     }
 
-    @SuppressWarnings("static-method")
     protected Pattern getPatternToken() {
         return PATTERN_TOKEN;
     }
@@ -250,12 +246,10 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
      *            The error response of the token request
      * @return String with a more detailed error message (user-facing, localized), can be empty
      */
-    @SuppressWarnings("static-method")
-    protected String getExtendedErrorMsg(final HttpResponse response) {
+    protected String getExtendedErrorMsg(final Response response) {
         return StringUtils.EMPTY;
     }
 
-    @SuppressWarnings("static-method")
     protected String getExtendedErrorMsg(@SuppressWarnings("unused") final String response) {
         return StringUtils.EMPTY;
     }
@@ -277,11 +271,11 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
     }
 
     protected String getAuthRegister() {
-        return res.getString(R.string.auth_token_register, getAuthTitle());
+        return res.getString(R.string.auth_register, getAuthTitle());
     }
 
     /**
-     * Enable or diable the start button depending on login/password field.
+     * Enable or disable the start button depending on login/password field.
      * If both fields are not empty, button is enabled.
      *
      */
@@ -296,10 +290,14 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
      */
     private class EnableStartButtonWatcher implements TextWatcher {
         @Override
-        public void beforeTextChanged(final CharSequence s, final int start, final int count, final int after) {}
+        public void beforeTextChanged(final CharSequence s, final int start, final int count, final int after) {
+            // empty
+        }
 
         @Override
-        public void onTextChanged(final CharSequence s, final int start, final int before, final int count) {}
+        public void onTextChanged(final CharSequence s, final int start, final int before, final int count) {
+            // empty
+        }
 
         @Override
         public void afterTextChanged(final Editable s) {
@@ -309,16 +307,13 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
 
     public static class TokenAuthParameters {
         @NonNull public final String urlToken;
-        @NonNull public final String urlRegister;
         @NonNull public final String fieldUsername;
         @NonNull public final String fieldPassword;
 
         public TokenAuthParameters(@NonNull final String urlToken,
-                               @NonNull final String urlRegister,
                                @NonNull final String fieldUsername,
                                @NonNull final String fieldPassword) {
             this.urlToken = urlToken;
-            this.urlRegister = urlRegister;
             this.fieldUsername = fieldUsername;
             this.fieldPassword = fieldPassword;
         }
@@ -326,11 +321,16 @@ public abstract class TokenAuthorizationActivity extends AbstractActivity {
         public void setTokenAuthExtras(final Intent intent) {
             if (intent != null) {
                 intent.putExtra(Intents.EXTRA_TOKEN_AUTH_URL_TOKEN, urlToken);
-                intent.putExtra(Intents.EXTRA_TOKEN_AUTH_URL_REGISTER, urlRegister);
                 intent.putExtra(Intents.EXTRA_TOKEN_AUTH_USERNAME, fieldUsername);
                 intent.putExtra(Intents.EXTRA_TOKEN_AUTH_PASSWORD, fieldPassword);
             }
         }
 
+    }
+
+    @Override
+    public void finish() {
+        Dialogs.dismiss(requestTokenDialog);
+        super.finish();
     }
 }

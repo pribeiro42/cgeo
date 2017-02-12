@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="src" path="common"/>
 	<classpathentry kind="src" path="gen">
 		<attributes>
 			<attribute name="ignore_optional_problems" value="true"/>
@@ -16,10 +17,21 @@
 			<attribute name="ignore_optional_problems" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="con" path="com.android.ide.eclipse.adt.ANDROID_FRAMEWORK"/>
-	<classpathentry exported="true" kind="con" path="com.android.ide.eclipse.adt.LIBRARIES"/>
-	<classpathentry exported="true" kind="con" path="com.android.ide.eclipse.adt.DEPENDENCIES"/>
-	<classpathentry kind="lib" path="compile-libs/org.eclipse.jdt.annotation_1.1.100.v20140704-0625.jar"/>
+	<classpathentry kind="con" path="com.android.ide.eclipse.adt.ANDROID_FRAMEWORK">
+		<attributes>
+			<attribute name="annotationpath" value="/cgeo/project/annotations_eclipse"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry exported="true" kind="con" path="com.android.ide.eclipse.adt.LIBRARIES">
+		<attributes>
+			<attribute name="annotationpath" value="/cgeo/project/annotations_eclipse"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry exported="true" kind="con" path="com.android.ide.eclipse.adt.DEPENDENCIES">
+		<attributes>
+			<attribute name="annotationpath" value="/cgeo/project/annotations_eclipse"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="lib" path="compile-libs/findbugs-jsr305.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

@@ -7,16 +7,14 @@ Perfect! Please **tell us in the [issue tracker](https://github.com/cgeo/cgeo/is
 
 ## Project status
 
-[![Build Status](http://ci.cgeo.org/job/c-geo/badge/icon)](http://ci.cgeo.org/job/c-geo/)<br>
-[![Issue Stats](http://issuestats.com/github/cgeo/cgeo/badge/pr)](http://issuestats.com/github/cgeo/cgeo)<br>
-[![Issue Stats](http://issuestats.com/github/cgeo/cgeo/badge/issue)](http://issuestats.com/github/cgeo/cgeo)<br>
-[![Dependency Status](https://www.versioneye.com/user/projects/552eb65710e71412110008bb/badge.svg?style=flat)](https://www.versioneye.com/user/projects/552eb65710e71412110008bb)
+[![Build Status](http://ci.cgeo.org/job/cgeo%20continuous%20integration/badge/icon)](http://ci.cgeo.org/job/cgeo%20continuous%20integration/)<br>
+[![Codacy Badge](https://api.codacy.com/project/badge/grade/3256314c8ba8457b9639bd2d4f4e7c91)](https://www.codacy.com/app/cgeo/cgeo)<br>
 
 ## Get the source
 
 Fork the [project source code](https://github.com/cgeo/cgeo), make changes to your clone and [create a pull request](https://help.github.com/articles/using-pull-requests) afterwards.
 
-### Branches ###
+### Branches
 
 - **master** is for development of new features. Nightly builds are created from this branch.
 - **release** is for all bug fixes of already existing features. So if a bug is reported in released version, it should be fixed on this branch (and merged to master afterwards).
@@ -24,72 +22,66 @@ Fork the [project source code](https://github.com/cgeo/cgeo), make changes to yo
 A more complex bugfix can be first tested against the `master` branch and integrated in the nightly builds, while kept compatible with the `release` branch for a later integration.
 Such a procedure is [described in the wiki](https://github.com/cgeo/cgeo/wiki/How-to-get-a-bug-fix-into-the-release).
 
-## Set up Eclipse
+## Setting up an IDE
 
-- Install an Eclipse distribution for your OS from http://eclipse.org/downloads/ (you may choose the Java developers distribution).
-- Start Eclipse, choose any directory as workspace. Close the welcome screen, if it appears.
-- After the workbench has started, select File | Import | Install | Install Software Items From File and select a locally downloaded copy of https://github.com/cgeo/cgeo/tree/master/main/project/eclipse%20installation/cgeo%20eclipse%20components.p2f. This way you can easily install all necessary plugins.
-- After forking the project you should import the Eclipse projects in your workspace with File | Import | Projects from Git.
+Make sure to use Java 8 for your IDE and build process. Some of the involved tools require it, even though the source code is Java 7 only.
+
+### Eclipse
+We removed the support for development in Eclipse, once we switched to a gradle based build.
+The cause for this is that Google dropped the ADT for eclipse support
+(https://android-developers.blogspot.de/2016/11/support-ended-for-eclipse-android.html).
+
+Still, there are developers in the project that uses both eclipse and Android Studio (or IntelliJ IDEA).
+They use eclipse for writing code/testing and Android Studio (or IntelliJ IDEA) for building.
+
+Here are instructions on how to setup the eclipse environment and clone the repositories as part of that setup.
+
+- Install the Eclipse installer for your OS from http://eclipse.org/downloads/. Do **not** choose any of the pre-made distributions like "Eclipse IDE for Java developers".
+- Start the installer, switch to advanced mode. On the first page of the wizard choose "Eclipse IDE for Java developers" and use "Next".
+- On the second wizard page use the "Plus" icon (you will have to search for it for a while), select the github catalog, and add the URI https://github.com/cgeo/cgeo/raw/master/main/project/eclipse%20installation/cgeo.setup. Now select the newly create tree node "cgeo" and use next.
+- On the third wizard page add your github user name and password. Adapt the "root installation folder", the folder cgeo will be created in there and everything will be downloaded and copied to the cgeo folder. That means that if you have a projects directory where you store many projects, it is a good candidate for root installation folder. The cgeo folder will ultimately consist of two folders, eclipse (that contains a whole eclipse installation) and git (that contains some git repository clones). Use Next and Finish to start the download of necessary Eclipse plugins and the cloning of the repositories.
+- In eclipse, the project will be uncompilable until you have copied the files keys.xml from main/templates to main/res/values (you need to do this because eclipse fails to create the file automatically from private.properties as Android Studio do). You have to change all values starting with @ and ending with @ (inclusive) with respective keys. If a key is missing, remove the respective value (together with the leading and trailing @).
+
+### Android Studio (or IntelliJ IDEA)
+- Install Android Studio from https://developer.android.com/sdk/index.html
+- On first start, choose to clone a project from version control, and choose github afterwards. Supply your credentials.
+- Android Studio should detect that gradle is used for building cgeo. If it complains that this is not a gradle project, then close the project. Choose "Import project" and select the `build.gradle` or `settings.gradle` in the root directory of the git repository.
 
 ## Build
 
-### Prerequisites ###
+### Prerequisites
 
-- [Android SDK](http://developer.android.com/sdk) (latest version) including Google APIs V19
-- [Ant](http://ant.apache.org) 1.6.0+ for building c:geo on the command line (not necessary when using only Eclipse)
-- If you use Microsoft Windows, [Google USB Driver](http://developer.android.com/sdk/win-usb.html) to install the application on the smartphone
+- [Android SDK](http://developer.android.com/sdk) (latest version) including Google APIs V23, Google repository and Android support repository.
+- If you use Microsoft Windows, [Google USB Driver](http://developer.android.com/sdk/win-usb.html) to install the application on the smartphone.
+- You need to provide several API keys for compiling the app. See next section for details.
 
-### Structure ###
+### API keys
+Copy [`main/templates/keys.xml`](https://github.com/cgeo/cgeo/blob/master/main/templates/keys.xml) to `main/res/values/`. Then edit `main/res/values/keys.xml` and insert several keys (see comments in the file). Most important is the Google Maps API v1 key. You can leave it empty, but then Google Maps doesn't work. Google doesn't hand out new keys for Google Maps v1, you have to use an existing one.
 
-c:geo sources and executables are located in the `main` directory. Tests are located in the `tests` directory.
+Request your personal API key for the various [OpenCaching](http://www.opencaching.eu/) sites we support. If you leave these blank, then those networks will remain disabled.
+* [opencaching.de OKAPI signup](http://www.opencaching.de/okapi/signup.html)
+* [opencaching.pl OKAPI signup](http://www.opencaching.pl/okapi/signup.html)
+* [opencaching.ro OKAPI signup](http://www.opencaching.ro/okapi/signup.html)
+* [opencaching.nl OKAPI signup](http://www.opencaching.nl/okapi/signup.html)
+* [opencaching.us OKAPI signup](http://www.opencaching.us/okapi/signup.html)
+* [opencaching.org.uk OKAPI signup](http://www.opencaching.org.uk/okapi/signup.html)
 
-### Known limitations ###
+### Building with gradle
 
-If the workspace directory name contains a space and leads to errors in the -dex Ant target, then you need to set the property "basedir" in your `local.properties` to the 8.3 name of the directory where this script is located on your disk.
+Run `gradlew` from the root directory of the git repository. That will install the necessary build framework and display how to build cgeo. `gradlew assembleBasicDebug` might be a good start.
 
-### Configuration ###
+### Debugging
 
-1. copy `./main/templates/private.properties` to `./main/`
-2. edit `private.properties` (see comments in the file)
-3. copy `./main/templates/local.properties` to `./main/`
-4. copy `./main/templates/local.properties` to `./tests/`
-5. edit `local.properties` (see comments in the file)
-6. copy `local.properties` to all other projects (currently android-support-v7-appcompat, google-play-services_lib, mapswithme-api, showcaseview)
-7. copy `local.properties` to cgeo-calendar and cgeo-contacts if you plan to hack on the plugins
-6. copy `./main/templates/keys.xml` to `./main/res/values/`
-7. edit `./main/res/values/keys.xml` and insert several keys (see comments in the file)
-  * Google Maps API v1 key (you can leave it empty, but then Google Maps don't work - Google doesn't hand out new keys for Google Maps v1, you have to use an existing one)
-  * request your personal consumer key and secret for the various opencaching nodes we support:
-    * [opencaching.de OKAPI signup](http://www.opencaching.de/okapi/signup.html)
-    * [opencaching.pl OKAPI signup](http://www.opencaching.pl/okapi/signup.html)
-    * [opencaching.ro OKAPI signup](http://www.opencaching.ro/okapi/signup.html)
-    * [opencaching.nl OKAPI signup](http://www.opencaching.nl/okapi/signup.html)
-    * [opencaching.us OKAPI signup](http://www.opencaching.us/okapi/signup.html)
-    * [opencaching.org.uk OKAPI signup](http://www.opencaching.org.uk/okapi/signup.html)
+In Eclipse, create a Debug Configuration by selecting the cgeo application (inside the cgeo) folder and press F11. Then choose to run as Android Application.
 
-### Building with Ant ###
+### Testing
 
-Run one of the following commands in `./main`
-
-    ant help
-    ant clean
-    ant debug
-    ant release
-
-or use the Ant view of Eclipse
-
-### Debugging ###
-
-In Eclipse, create a Debug Configuration for an Android Application using the menu Run | Debug Configurations
-
-### Testing ###
-
-The Test classes can be found in the project cgeo-os-test. Test classes should be located in the same package as
+The Test classes can be found in the project test. Test classes should be located in the same package as
 the class under test.
 Every class can be "Run As" (or "Debug As") an [Android JUnit Test](http://developer.android.com/guide/topics/testing/testing_android.html) from Eclipse.
 To run all tests use the same "Run As" menu item from the context menu of the test project.
 
-For tests to run successfully you need to configure c:geo on the emulator that runs the test with a valid geocaching.com account. In order for all tests to be successfull the account needs to be premium.
+For tests to run successfully you need to configure c:geo on the emulator that runs the test with a valid geocaching.com account. In order for all tests to be successfull the account needs to be a premium member.
 
 ## License
 

@@ -1,10 +1,10 @@
 package cgeo.geocaching.apps.cache;
 
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.apps.AbstractApp;
 import cgeo.geocaching.apps.navi.CacheNavigationApp;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -19,7 +19,7 @@ abstract class AbstractGeneralApp extends AbstractApp implements CacheNavigation
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Geocache cache) {
+    public void navigate(@NonNull final Activity activity, @NonNull final Geocache cache) {
         final Intent intent = getLaunchIntent();
         if (intent != null) {
             intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);

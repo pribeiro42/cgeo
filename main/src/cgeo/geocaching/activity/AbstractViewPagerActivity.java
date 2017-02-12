@@ -1,20 +1,13 @@
 package cgeo.geocaching.activity;
 
-import butterknife.ButterKnife;
-
 import cgeo.geocaching.R;
 import cgeo.geocaching.utils.Log;
-
-import com.viewpagerindicator.TitlePageIndicator;
-import com.viewpagerindicator.TitleProvider;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
 
 import android.app.Activity;
 import android.os.Bundle;
 import android.os.Parcelable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v4.view.ViewPager.OnPageChangeListener;
@@ -25,6 +18,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import butterknife.ButterKnife;
+import com.viewpagerindicator.TitlePageIndicator;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Abstract activity with the ability to manage pages in a view pager.
@@ -71,29 +68,29 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
          * Returns a validated view.
          *
          */
-        public View getDispatchedView(final ViewGroup parentView);
+        View getDispatchedView(final ViewGroup parentView);
 
         /**
          * Returns a (maybe cached) view.
          *
          */
-        public View getView(final ViewGroup parentView);
+        View getView(final ViewGroup parentView);
 
         /**
          * Handles changed data-sets.
          */
-        public void notifyDataSetChanged();
+        void notifyDataSetChanged();
 
         /**
          * Gets state of the view
          */
-        public @Nullable
+        @Nullable
         Bundle getViewState();
 
         /**
          * Set the state of the view
          */
-        public void setViewState(@NonNull Bundle state);
+        void setViewState(@NonNull Bundle state);
     }
 
     /**
@@ -101,13 +98,13 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
      *
      */
     protected interface OnPageSelectedListener {
-        public void onPageSelected(int position);
+        void onPageSelected(int position);
     }
 
     /**
      * The ViewPagerAdapter for scrolling through pages of the CacheDetailActivity.
      */
-    private class ViewPagerAdapter extends PagerAdapter implements TitleProvider {
+    private class ViewPagerAdapter extends PagerAdapter {
 
         @Override
         public void destroyItem(final ViewGroup container, final int position, final Object object) {
@@ -119,9 +116,7 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
             // Store the state of the view if the page supports it
             final PageViewCreator creator = viewCreators.get(page);
             if (creator != null) {
-                @Nullable
-                final
-                Bundle state = creator.getViewState();
+                final Bundle state = creator.getViewState();
                 if (state != null) {
                     viewStates.put(page, state);
                 }
@@ -132,6 +127,7 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
 
         @Override
         public void finishUpdate(final ViewGroup container) {
+            // empty
         }
 
         @Override
@@ -146,7 +142,7 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
 
             PageViewCreator creator = viewCreators.get(page);
 
-            if (null == creator && null != page) {
+            if (creator == null && page != null) {
                 creator = AbstractViewPagerActivity.this.createViewCreator(page);
                 viewCreators.put(page, creator);
                 viewStates.put(page, new Bundle());
@@ -155,7 +151,7 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
             View view = null;
 
             try {
-                if (null != creator) {
+                if (creator != null) {
                     // Result from getView() is maybe cached, but it should be valid because the
                     // creator should be informed about data-changes with notifyDataSetChanged()
                     view = creator.getView(container);
@@ -181,6 +177,7 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
 
         @Override
         public void restoreState(final Parcelable arg0, final ClassLoader arg1) {
+            // empty
         }
 
         @Override
@@ -190,6 +187,7 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
 
         @Override
         public void startUpdate(final ViewGroup arg0) {
+            // empty
         }
 
         @Override
@@ -200,14 +198,13 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
         }
 
         @Override
-        public String getTitle(final int position) {
+        public CharSequence getPageTitle(final int position) {
             final Page page = pageOrder.get(position);
-            if (null == page) {
+            if (page == null) {
                 return "";
             }
             return AbstractViewPagerActivity.this.getTitle(page);
         }
-
     }
 
     /**
@@ -216,7 +213,7 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
      * @param startPageIndex
      *            index of the page shown first
      * @param pageSelectedListener
-     *            page selection listener or <code>null</code>
+     *            page selection listener or {@code null}
      */
     protected final void createViewPager(final int startPageIndex, final OnPageSelectedListener pageSelectedListener) {
         // initialize ViewPager
@@ -235,10 +232,12 @@ public abstract class AbstractViewPagerActivity<Page extends Enum<Page>> extends
 
                 @Override
                 public void onPageScrolled(final int position, final float positionOffset, final int positionOffsetPixels) {
+                    // empty
                 }
 
                 @Override
                 public void onPageScrollStateChanged(final int state) {
+                    // empty
                 }
             });
         }

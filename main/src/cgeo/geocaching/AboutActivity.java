@@ -1,7 +1,6 @@
 package cgeo.geocaching;
 
 import cgeo.geocaching.activity.AbstractViewPagerActivity;
-import cgeo.geocaching.compatibility.Compatibility;
 import cgeo.geocaching.ui.AbstractCachingPageViewCreator;
 import cgeo.geocaching.ui.AnchorAwareLinkMovementMethod;
 import cgeo.geocaching.utils.ClipboardUtils;
@@ -9,16 +8,12 @@ import cgeo.geocaching.utils.ProcessUtils;
 import cgeo.geocaching.utils.SystemInformation;
 import cgeo.geocaching.utils.Version;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.CharEncoding;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-
-import android.content.Context;
+import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.annotation.RawRes;
+import android.support.annotation.StringRes;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
@@ -31,8 +26,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
-import butterknife.Bind;
+import butterknife.BindView;
 import butterknife.ButterKnife;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.CharEncoding;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page> {
 
@@ -40,19 +40,19 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
 
     class LicenseViewCreator extends AbstractCachingPageViewCreator<ScrollView> {
 
-        @Bind(R.id.license) protected TextView licenseLink;
-        @Bind(R.id.license_text) protected TextView licenseText;
+        @BindView(R.id.license) protected TextView licenseLink;
+        @BindView(R.id.license_text) protected TextView licenseText;
 
         @Override
         public ScrollView getDispatchedView(final ViewGroup parentView) {
             final ScrollView view = (ScrollView) getLayoutInflater().inflate(R.layout.about_license_page, parentView, false);
             ButterKnife.bind(this, view);
-            setClickListener(licenseLink, "http://www.apache.org/licenses/LICENSE-2.0.html");
+            setClickListener(licenseLink, "https://www.apache.org/licenses/LICENSE-2.0.html");
             licenseText.setText(getRawResourceString(R.raw.license));
             return view;
         }
 
-        private String getRawResourceString(final int resourceId) {
+        private String getRawResourceString(@RawRes final int resourceId) {
             InputStream ins = null;
             Scanner scanner = null;
             try {
@@ -72,7 +72,7 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
 
     class ContributorsViewCreator extends AbstractCachingPageViewCreator<ScrollView> {
 
-        @Bind(R.id.contributors) protected TextView contributors;
+        @BindView(R.id.contributors) protected TextView contributors;
 
         @Override
         public ScrollView getDispatchedView(final ViewGroup parentView) {
@@ -86,9 +86,9 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
 
     class ChangeLogViewCreator extends AbstractCachingPageViewCreator<ScrollView> {
 
-        @Bind(R.id.changelog_master) protected TextView changeLogMaster;
-        @Bind(R.id.changelog_release) protected TextView changeLogRelease;
-        @Bind(R.id.changelog_github) protected TextView changeLogLink;
+        @BindView(R.id.changelog_master) protected TextView changeLogMaster;
+        @BindView(R.id.changelog_release) protected TextView changeLogRelease;
+        @BindView(R.id.changelog_github) protected TextView changeLogLink;
 
         @Override
         public ScrollView getDispatchedView(final ViewGroup parentView) {
@@ -115,8 +115,9 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
 
     class SystemViewCreator extends AbstractCachingPageViewCreator<ScrollView> {
 
-        @Bind(R.id.system) protected TextView system;
-        @Bind(R.id.copy) protected Button copy;
+        @BindView(R.id.system) protected TextView system;
+        @BindView(R.id.copy) protected Button copy;
+        @BindView(R.id.share) protected Button share;
 
         @Override
         public ScrollView getDispatchedView(final ViewGroup parentView) {
@@ -125,12 +126,24 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
             final String systemInfo = SystemInformation.getSystemInformation(AboutActivity.this);
             system.setText(systemInfo);
             system.setMovementMethod(AnchorAwareLinkMovementMethod.getInstance());
-            Compatibility.setTextIsSelectable(system, true);
+            system.setTextIsSelectable(true);
             copy.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(final View view) {
                     ClipboardUtils.copyToClipboard(systemInfo);
                     showShortToast(getString(R.string.clipboard_copy_ok));
+                }
+            });
+            share.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(final View view) {
+                    ClipboardUtils.copyToClipboard(systemInfo);
+                    final Intent share = new Intent(Intent.ACTION_SENDTO);
+                    share.setType("message/rfc822");
+                    share.setData(Uri.parse("mailto:"));
+                    share.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.about_system_info));
+                    share.putExtra(Intent.EXTRA_TEXT, systemInfo);
+                    startActivity(Intent.createChooser(share, getString(R.string.about_system_info_send_chooser)));
                 }
             });
             return view;
@@ -139,12 +152,12 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
 
     class HelpViewCreator extends AbstractCachingPageViewCreator<ScrollView> {
 
-        @Bind(R.id.support) protected TextView support;
-        @Bind(R.id.website) protected TextView website;
-        @Bind(R.id.facebook) protected TextView facebook;
-        @Bind(R.id.twitter) protected TextView twitter;
-        @Bind(R.id.market) protected TextView market;
-        @Bind(R.id.faq) protected TextView faq;
+        @BindView(R.id.support) protected TextView support;
+        @BindView(R.id.website) protected TextView website;
+        @BindView(R.id.facebook) protected TextView facebook;
+        @BindView(R.id.twitter) protected TextView twitter;
+        @BindView(R.id.market) protected TextView market;
+        @BindView(R.id.faq) protected TextView faq;
 
         @Override
         public ScrollView getDispatchedView(final ViewGroup parentView) {
@@ -153,8 +166,8 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
             setClickListener(support, "mailto:support@cgeo.org?subject=" + Uri.encode("cgeo " + Version.getVersionName(AboutActivity.this)) +
                     "&body=" + Uri.encode(SystemInformation.getSystemInformation(AboutActivity.this)) + "\n");
             setClickListener(website, "http://www.cgeo.org/");
-            setClickListener(facebook, "http://www.facebook.com/pages/cgeo/297269860090");
-            setClickListener(twitter, "http://twitter.com/android_gc");
+            setClickListener(facebook, "https://www.facebook.com/pages/cgeo/297269860090");
+            setClickListener(twitter, "https://twitter.com/android_gc");
             setClickListener(faq, "http://faq.cgeo.org/");
             market.setOnClickListener(new View.OnClickListener() {
 
@@ -170,8 +183,9 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
 
     class VersionViewCreator extends AbstractCachingPageViewCreator<ScrollView> {
 
-        @Bind(R.id.about_version_string) protected TextView version;
-        @Bind(R.id.donate) protected TextView donateButton;
+        @BindView(R.id.about_version_string) protected TextView version;
+        @BindView(R.id.about_special_build) protected TextView specialBuild;
+        @BindView(R.id.donate) protected TextView donateButton;
 
         @Override
         public ScrollView getDispatchedView(final ViewGroup parentView) {
@@ -179,6 +193,10 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
             ButterKnife.bind(this, view);
             version.setText(Version.getVersionName(AboutActivity.this));
             setClickListener(donateButton, "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=AQBS7UP76CXW2");
+            if (StringUtils.isNotEmpty(BuildConfig.SPECIAL_BUILD)) {
+                specialBuild.setText(BuildConfig.SPECIAL_BUILD);
+                specialBuild.setVisibility(View.VISIBLE);
+            }
             return view;
         }
     }
@@ -191,9 +209,10 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
         CONTRIBUTORS(R.string.about_contributors),
         LICENSE(R.string.about_license);
 
+        @StringRes
         private final int resourceId;
 
-        Page(final int resourceId) {
+        Page(@StringRes final int resourceId) {
             this.resourceId = resourceId;
         }
     }
@@ -226,7 +245,7 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
     }
 
     @Override
-    protected final cgeo.geocaching.activity.AbstractViewPagerActivity.PageViewCreator createViewCreator(final Page page) {
+    protected final AbstractViewPagerActivity.PageViewCreator createViewCreator(final Page page) {
         switch (page) {
             case VERSION:
                 return new VersionViewCreator();
@@ -255,7 +274,7 @@ public class AboutActivity extends AbstractViewPagerActivity<AboutActivity.Page>
         return new ImmutablePair<List<? extends Page>, Integer>(pages, 0);
     }
 
-    public static void showChangeLog(final Context fromActivity) {
+    public static void showChangeLog(final Activity fromActivity) {
         final Intent intent = new Intent(fromActivity, AboutActivity.class);
         intent.putExtra(EXTRA_ABOUT_STARTPAGE, Page.CHANGELOG.ordinal());
         fromActivity.startActivity(intent);

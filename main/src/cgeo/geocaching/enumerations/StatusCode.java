@@ -1,10 +1,11 @@
 package cgeo.geocaching.enumerations;
 
-import cgeo.geocaching.R;
-
-import org.eclipse.jdt.annotation.NonNull;
-
 import android.content.res.Resources;
+import android.support.annotation.StringRes;
+
+import android.support.annotation.NonNull;
+
+import cgeo.geocaching.R;
 
 public enum StatusCode {
 
@@ -21,6 +22,7 @@ public enum StatusCode {
     UNAPPROVED_LICENSE(R.string.err_license),
     UNVALIDATED_ACCOUNT(R.string.err_unvalidated_account),
     UNPUBLISHED_CACHE(R.string.err_unpublished),
+    CACHE_NOT_FOUND(R.string.err_cache_not_found),
     PREMIUM_ONLY(R.string.err_premium_only),
     MAINTENANCE(R.string.err_maintenance),
     LOG_POST_ERROR(R.string.err_log_post_failed),
@@ -30,19 +32,21 @@ public enum StatusCode {
     NOT_LOGGED_IN(R.string.init_login_popup_failed),
     LOGIMAGE_POST_ERROR(R.string.err_logimage_post_failed);
 
-    final private int error_string;
+    @StringRes
+    private final int errorString;
 
-    StatusCode(final int error_string) {
-        this.error_string = error_string;
+    StatusCode(@StringRes final int errorString) {
+        this.errorString = errorString;
     }
 
+    @StringRes
     public int getErrorString() {
-        return error_string;
+        return errorString;
     }
 
     @NonNull
     public String getErrorString(final Resources res) {
-        return res.getString(error_string);
+        return res.getString(errorString);
     }
 
 }

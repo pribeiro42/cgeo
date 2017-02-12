@@ -1,13 +1,20 @@
 package cgeo.geocaching.connector.tc;
 
-import cgeo.geocaching.enumerations.LogType;
+import cgeo.geocaching.log.LogType;
+
+import android.support.annotation.NonNull;
 
 /**
  * adapter for terracaching log types
  */
 public final class TerraCachingLogType {
 
-    public static LogType getLogType(final String logtype) {
+    private TerraCachingLogType() {
+        // utility class
+    }
+
+    @NonNull
+    public static LogType getLogType(@NonNull final String logtype) {
         switch (logtype) {
             case "Found it!":
                 return LogType.FOUND_IT;

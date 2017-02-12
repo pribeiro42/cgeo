@@ -1,16 +1,15 @@
 package cgeo.geocaching.filter;
 
 import cgeo.geocaching.CgeoApplication;
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
 import cgeo.geocaching.location.Geopoint;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.sensors.GeoData;
 import cgeo.geocaching.sensors.Sensors;
 
-import org.eclipse.jdt.annotation.NonNull;
-
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.support.annotation.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +19,20 @@ class DistanceFilter extends AbstractFilter {
     private final int minDistance;
     private final int maxDistance;
 
-    public DistanceFilter(@NonNull final String name, final int minDistance, final int maxDistance) {
+    public static final Creator<DistanceFilter> CREATOR = new Parcelable.Creator<DistanceFilter>() {
+
+        @Override
+        public DistanceFilter createFromParcel(final Parcel in) {
+            return new DistanceFilter(in);
+        }
+
+        @Override
+        public DistanceFilter[] newArray(final int size) {
+            return new DistanceFilter[size];
+        }
+    };
+
+    DistanceFilter(@NonNull final String name, final int minDistance, final int maxDistance) {
         super(name);
         this.minDistance = minDistance;
         this.maxDistance = maxDistance;
@@ -36,13 +48,13 @@ class DistanceFilter extends AbstractFilter {
 
     @Override
     public boolean accepts(@NonNull final Geocache cache) {
-        final Geopoint currentPos = new Geopoint(geo);
         final Geopoint coords = cache.getCoords();
         if (coords == null) {
             // If a cache has no coordinates, consider it to be out of range. It will
             // happen with archived caches.
             return false;
         }
+        final Geopoint currentPos = new Geopoint(geo);
         final float distance = currentPos.distanceTo(coords);
         return distance >= minDistance && distance <= maxDistance;
     }
@@ -60,8 +72,7 @@ class DistanceFilter extends AbstractFilter {
                 final int maxRange;
                 if (i < KILOMETERS.length - 1) {
                     maxRange = KILOMETERS[i + 1];
-                }
-                else {
+                } else {
                     maxRange = Integer.MAX_VALUE;
                 }
                 final String range = maxRange == Integer.MAX_VALUE ? "> " + minRange : minRange + " - " + maxRange;
@@ -78,18 +89,4 @@ class DistanceFilter extends AbstractFilter {
         dest.writeInt(minDistance);
         dest.writeInt(maxDistance);
     }
-
-    public static final Creator<DistanceFilter> CREATOR
-            = new Parcelable.Creator<DistanceFilter>() {
-
-        @Override
-        public DistanceFilter createFromParcel(final Parcel in) {
-            return new DistanceFilter(in);
-        }
-
-        @Override
-        public DistanceFilter[] newArray(final int size) {
-            return new DistanceFilter[size];
-        }
-    };
 }

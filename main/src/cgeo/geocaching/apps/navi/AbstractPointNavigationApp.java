@@ -1,17 +1,14 @@
 package cgeo.geocaching.apps.navi;
 
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.R;
-import cgeo.geocaching.Waypoint;
-import cgeo.geocaching.activity.ActivityMixin;
 import cgeo.geocaching.apps.AbstractApp;
 import cgeo.geocaching.location.Geopoint;
-
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Waypoint;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 /**
  * navigation app for simple point navigation (no differentiation between cache/waypoint/point)
@@ -27,30 +24,26 @@ abstract class AbstractPointNavigationApp extends AbstractApp implements CacheNa
     }
 
     @Override
-    public void navigate(@NonNull final Activity activity, final @NonNull Geocache cache) {
-        navigateWithNullCheck(activity, cache.getCoords());
-    }
-
-    private void navigateWithNullCheck(@NonNull final Activity activity, @Nullable final Geopoint coords) {
-        if (coords != null) {
-            navigate(activity, coords);
-        } else {
-            ActivityMixin.showToast(activity, activity.getResources().getString(R.string.err_nav_no_coordinates));
-        }
+    public void navigate(@NonNull final Activity activity, @NonNull final Geocache cache) {
+        final Geopoint coords = cache.getCoords();
+        assert coords != null; // asserted by caller
+        navigate(activity, coords);
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Waypoint waypoint) {
-        navigateWithNullCheck(activity, waypoint.getCoords());
+    public void navigate(@NonNull final Activity activity, @NonNull final Waypoint waypoint) {
+        final Geopoint coords = waypoint.getCoords();
+        assert coords != null; // asserted by caller
+        navigate(activity, coords);
     }
 
     @Override
-    public boolean isEnabled(final @NonNull Geocache cache) {
+    public boolean isEnabled(@NonNull final Geocache cache) {
         return cache.getCoords() != null;
     }
 
     @Override
-    public boolean isEnabled(final @NonNull Waypoint waypoint) {
+    public boolean isEnabled(@NonNull final Waypoint waypoint) {
         return waypoint.getCoords() != null;
     }
 

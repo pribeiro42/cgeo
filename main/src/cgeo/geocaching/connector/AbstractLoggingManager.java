@@ -1,8 +1,8 @@
 package cgeo.geocaching.connector;
 
-import cgeo.geocaching.TrackableLog;
+import cgeo.geocaching.log.TrackableLog;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import java.util.Collections;
 import java.util.List;
@@ -20,4 +20,8 @@ public abstract class AbstractLoggingManager implements ILoggingManager {
         return Collections.emptyList();
     }
 
+    @Override
+    public int getPremFavoritePoints() {
+        return 0;
+    }
 }

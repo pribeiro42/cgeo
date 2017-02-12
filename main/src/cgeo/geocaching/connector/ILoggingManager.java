@@ -1,11 +1,11 @@
 package cgeo.geocaching.connector;
 
-import cgeo.geocaching.Image;
-import cgeo.geocaching.TrackableLog;
-import cgeo.geocaching.enumerations.LogType;
+import cgeo.geocaching.models.Image;
+import cgeo.geocaching.log.LogType;
+import cgeo.geocaching.log.TrackableLog;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.util.Calendar;
 import java.util.List;
@@ -29,13 +29,15 @@ public interface ILoggingManager {
     ImageResult postLogImage(String logId,
             Image image);
 
-    public boolean hasLoaderError();
+    boolean hasLoaderError();
 
     @NonNull
-    public List<TrackableLog> getTrackables();
+    List<TrackableLog> getTrackables();
 
     @NonNull
-    public List<LogType> getPossibleLogTypes();
+    List<LogType> getPossibleLogTypes();
 
-    public void init();
+    void init();
+
+    int getPremFavoritePoints();
 }

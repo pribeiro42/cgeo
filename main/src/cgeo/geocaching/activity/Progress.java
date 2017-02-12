@@ -17,7 +17,7 @@ public class Progress {
     private ProgressDialog dialog;
     private int progress = 0;
     private int progressDivider = 1;
-    final private boolean hideAbsolute;
+    private final boolean hideAbsolute;
 
     public Progress(final boolean hideAbsolute) {
         this.hideAbsolute = hideAbsolute;
@@ -61,7 +61,7 @@ public class Progress {
         if (cancelMessage != null) {
             dialog.setCancelable(true);
             dialog.setCancelMessage(cancelMessage);
-            dialog.setButton(DialogInterface.BUTTON_NEGATIVE, context.getResources().getString(android.R.string.cancel), cancelMessage);
+            dialog.setButton(DialogInterface.BUTTON_NEGATIVE, context.getString(android.R.string.cancel), cancelMessage);
         } else {
             dialog.setCancelable(false);
         }

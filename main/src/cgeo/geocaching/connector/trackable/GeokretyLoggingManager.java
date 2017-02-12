@@ -1,16 +1,16 @@
 package cgeo.geocaching.connector.trackable;
 
-import cgeo.geocaching.AbstractLoggingActivity;
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.TrackableLog;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.connector.LogResult;
-import cgeo.geocaching.enumerations.LogTypeTrackable;
 import cgeo.geocaching.enumerations.StatusCode;
+import cgeo.geocaching.log.AbstractLoggingActivity;
+import cgeo.geocaching.log.LogTypeTrackable;
+import cgeo.geocaching.log.TrackableLog;
 import cgeo.geocaching.utils.Log;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -37,7 +37,7 @@ public class GeokretyLoggingManager extends AbstractTrackableLoggingManager {
                     date,
                     log);
 
-            final String logs = (response.getRight().isEmpty() ? "" : StringUtils.join(response.getRight(), "\n"));
+            final String logs = response.getRight().isEmpty() ? "" : StringUtils.join(response.getRight(), "\n");
             return new LogResult(response.getLeft(), logs);
         } catch (final Exception e) {
             Log.e("GeokretyLoggingManager.postLog", e);

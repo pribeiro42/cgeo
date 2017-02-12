@@ -1,25 +1,26 @@
 package cgeo.geocaching.network;
 
-import ch.boye.httpclientandroidlib.NameValuePair;
-import ch.boye.httpclientandroidlib.client.utils.URLEncodedUtils;
-import ch.boye.httpclientandroidlib.message.BasicNameValuePair;
-
-import org.apache.commons.lang3.CharEncoding;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 
+import okhttp3.HttpUrl;
+import okhttp3.HttpUrl.Builder;
+
 /**
  * List of key/values pairs to be used in a GET or POST request.
  *
  */
-public class Parameters extends ArrayList<NameValuePair> {
+public class Parameters extends ArrayList<ImmutablePair<String, String>> {
 
     private static final long serialVersionUID = 1L;
+    private boolean percentEncoding = false;
 
     /**
      * @param keyValues
@@ -31,13 +32,20 @@ public class Parameters extends ArrayList<NameValuePair> {
         put(keyValues);
     }
 
-    private static final Comparator<NameValuePair> comparator = new Comparator<NameValuePair>() {
+    private static final Comparator<ImmutablePair<String, String>> comparator = new Comparator<ImmutablePair<String, String>>() {
         @Override
-        public int compare(final NameValuePair nv1, final NameValuePair nv2) {
-            final int comparedKeys = nv1.getName().compareTo(nv2.getName());
-            return comparedKeys != 0 ? comparedKeys : nv1.getValue().compareTo(nv2.getValue());
+        public int compare(final ImmutablePair<String, String> nv1, final ImmutablePair<String, String> nv2) {
+            final int comparedKeys = nv1.left.compareTo(nv2.left);
+            return comparedKeys != 0 ? comparedKeys : nv1.right.compareTo(nv2.right);
         }
     };
+
+    /**
+     * Percent encode following http://tools.ietf.org/html/rfc5849#section-3.6
+     */
+    static String percentEncode(@NonNull final String url) {
+        return StringUtils.replace(Network.rfc3986URLEncode(url), "*", "%2A");
+    }
 
     /**
      * Add new key/value pairs to the current parameters.
@@ -53,7 +61,7 @@ public class Parameters extends ArrayList<NameValuePair> {
             throw new InvalidParameterException("odd number of parameters");
         }
         for (int i = 0; i < keyValues.length; i += 2) {
-            add(new BasicNameValuePair(keyValues[i], keyValues[i + 1]));
+            add(ImmutablePair.of(keyValues[i], keyValues[i + 1]));
         }
         return this;
     }
@@ -67,9 +75,32 @@ public class Parameters extends ArrayList<NameValuePair> {
         Collections.sort(this, comparator);
     }
 
+    /**
+     * Some sites require the use of percent encoding (see {@link #percentEncode(String)}) and do not
+     * accept other encodings during their authorization and signing processes. This forces those
+     * parameters to use percent encoding instead of the regular encoding.
+     */
+    public void usePercentEncoding() {
+        percentEncoding = true;
+    }
+
     @Override
     public String toString() {
-        return URLEncodedUtils.format(this, CharEncoding.UTF_8);
+        if (percentEncoding) {
+            if (isEmpty()) {
+                return "";
+            }
+            final StringBuilder builder = new StringBuilder();
+            for (final ImmutablePair<String, String> nameValuePair : this) {
+                builder.append('&').append(percentEncode(nameValuePair.left)).append('=').append(percentEncode(nameValuePair.right));
+            }
+            return builder.substring(1);
+        }
+        final Builder builder = HttpUrl.parse("http://dummy.cgeo.org/").newBuilder();
+        for (final ImmutablePair<String, String> nameValuePair : this) {
+            builder.addQueryParameter(nameValuePair.left, nameValuePair.right);
+        }
+        return StringUtils.defaultString(builder.build().encodedQuery());
     }
 
     /**

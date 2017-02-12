@@ -1,22 +1,22 @@
 package cgeo.geocaching.connector.trackable;
 
-import cgeo.geocaching.AbstractLoggingActivity;
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.Image;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Image;
 import cgeo.geocaching.R;
-import cgeo.geocaching.TrackableLog;
 import cgeo.geocaching.activity.ActivityMixin;
 import cgeo.geocaching.connector.ImageResult;
 import cgeo.geocaching.connector.LogResult;
 import cgeo.geocaching.connector.gc.GCLogin;
 import cgeo.geocaching.connector.gc.GCParser;
-import cgeo.geocaching.enumerations.LogTypeTrackable;
 import cgeo.geocaching.enumerations.StatusCode;
+import cgeo.geocaching.log.AbstractLoggingActivity;
+import cgeo.geocaching.log.LogTypeTrackable;
+import cgeo.geocaching.log.TrackableLog;
 import cgeo.geocaching.settings.Settings;
 import cgeo.geocaching.utils.Log;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -39,14 +39,14 @@ public class TravelBugLoggingManager extends AbstractTrackableLoggingManager {
     @Override
     public List<LogTypeTrackable> loadInBackground() {
         if (!Settings.hasGCCredentials()) { // allow offline logging
-            ActivityMixin.showToast(activity, activity.getResources().getString(R.string.err_login));
+            ActivityMixin.showToast(activity, activity.getString(R.string.err_login));
             return null;
         }
 
         final String page = TravelBugConnector.getTravelbugViewstates(guid);
 
         if (page == null) {
-            activity.showToast(activity.getResources().getString(R.string.err_log_load_data));
+            activity.showToast(activity.getString(R.string.err_log_load_data));
             hasLoaderError = true;
         } else {
             viewstates = GCLogin.getViewstates(page);
@@ -71,7 +71,7 @@ public class TravelBugLoggingManager extends AbstractTrackableLoggingManager {
                     viewstates,
                     trackableLog.action,
                     date.get(Calendar.YEAR),
-                    (date.get(Calendar.MONTH) + 1),
+                    date.get(Calendar.MONTH) + 1,
                     date.get(Calendar.DATE),
                     log);
 

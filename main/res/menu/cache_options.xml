@@ -50,7 +50,7 @@
         app:showAsAction="ifRoom">
     </item>
     <item
-        android:id="@+id/menu_store"
+        android:id="@+id/menu_store_in_list"
         android:icon="@drawable/ic_menu_save"
         android:title="@string/cache_offline_store"
         android:visible="false"
@@ -90,15 +90,28 @@
         app:showAsAction="ifRoom">
     </item>
     <item
+        android:id="@+id/menu_challenge_checker"
+        android:title="@string/cache_menu_challenge_checker"
+        android:visible="false"
+        app:showAsAction="ifRoom">
+    </item>
+    <item
         android:id="@+id/menu_ignore"
         android:title="@string/cache_menu_ignore"
         android:visible="false"
         app:showAsAction="ifRoom">
     </item>
     <item
+        android:id="@+id/menu_extract_waypoints"
+        android:title="@string/cache_menu_extract_waypoints"
+        app:showAsAction="ifRoom"
+        android:visible="false">
+    </item>
+    <item
         android:id="@+id/menu_export"
         android:title="@string/export"
-        app:showAsAction="never|withText">
+        app:showAsAction="never|withText"
+        android:visible="false">
         <menu>
             <item
                 android:id="@+id/menu_export_gpx"
@@ -108,7 +121,22 @@
                 android:id="@+id/menu_export_fieldnotes"
                 android:title="@string/export_fieldnotes">
             </item>
+            <item
+                android:id="@+id/menu_export_persnotes"
+                android:title="@string/export_persnotes">
+            </item>
         </menu>
     </item>
-    
+    <item
+        android:id="@+id/menu_edit_fieldnote"
+        android:icon="@drawable/ic_menu_rotate"
+        android:title="@string/cache_personal_note"
+        android:visible="false">
+    </item>
+    <item
+        android:id="@+id/menu_app_invite"
+        android:title="@string/invitation_action"
+        app:showAsAction="ifRoom"
+        android:visible="false">
+    </item>
 </menu>

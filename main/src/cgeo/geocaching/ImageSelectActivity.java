@@ -1,18 +1,12 @@
 package cgeo.geocaching;
 
-import butterknife.Bind;
-import butterknife.ButterKnife;
-
 import cgeo.geocaching.activity.AbstractActionBarActivity;
-import cgeo.geocaching.files.LocalStorage;
+import cgeo.geocaching.models.Image;
 import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.storage.LocalStorage;
 import cgeo.geocaching.ui.dialog.Dialogs;
 import cgeo.geocaching.utils.ImageUtils;
 import cgeo.geocaching.utils.Log;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.Nullable;
 
 import android.content.Intent;
 import android.database.Cursor;
@@ -24,6 +18,7 @@ import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.provider.MediaStore.MediaColumns;
+import android.support.annotation.Nullable;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
@@ -38,16 +33,21 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+
 public class ImageSelectActivity extends AbstractActionBarActivity {
 
-    @Bind(R.id.caption) protected EditText captionView;
-    @Bind(R.id.description) protected EditText descriptionView;
-    @Bind(R.id.logImageScale) protected Spinner scaleView;
-    @Bind(R.id.camera) protected Button cameraButton;
-    @Bind(R.id.stored) protected Button storedButton;
-    @Bind(R.id.save) protected Button saveButton;
-    @Bind(R.id.cancel) protected Button clearButton;
-    @Bind(R.id.image_preview) protected ImageView imagePreview;
+    @BindView(R.id.caption) protected EditText captionView;
+    @BindView(R.id.description) protected EditText descriptionView;
+    @BindView(R.id.logImageScale) protected Spinner scaleView;
+    @BindView(R.id.camera) protected Button cameraButton;
+    @BindView(R.id.stored) protected Button storedButton;
+    @BindView(R.id.save) protected Button saveButton;
+    @BindView(R.id.cancel) protected Button clearButton;
+    @BindView(R.id.image_preview) protected ImageView imagePreview;
 
     private static final String SAVED_STATE_IMAGE = "cgeo.geocaching.saved_state_image";
     private static final String SAVED_STATE_IMAGE_SCALE = "cgeo.geocaching.saved_state_image_scale";
@@ -71,6 +71,8 @@ public class ImageSelectActivity extends AbstractActionBarActivity {
         if (extras != null) {
             image = extras.getParcelable(Intents.EXTRA_IMAGE);
             scaleChoiceIndex = extras.getInt(Intents.EXTRA_SCALE, scaleChoiceIndex);
+            final String geocode = extras.getString(Intents.EXTRA_GEOCODE);
+            setCacheTitleBar(geocode);
         }
 
         // Restore previous state
@@ -190,9 +192,6 @@ public class ImageSelectActivity extends AbstractActionBarActivity {
     }
 
     private void selectImageFromCamera() {
-        // create Intent to take a picture and return control to the calling application
-        final Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-
         final Uri imageUri = ImageUtils.getOutputImageFileUri();
         if (imageUri == null) {
             showFailure();
@@ -204,6 +203,9 @@ public class ImageSelectActivity extends AbstractActionBarActivity {
             showFailure();
             return;
         }
+
+        // create Intent to take a picture and return control to the calling application
+        final Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         intent.putExtra(MediaStore.EXTRA_OUTPUT, image.getUri()); // set the image file name
 
         // start the image capture Intent
@@ -221,7 +223,7 @@ public class ImageSelectActivity extends AbstractActionBarActivity {
     protected void onActivityResult(final int requestCode, final int resultCode, final Intent data) {
         if (resultCode == RESULT_CANCELED) {
             // User cancelled the image capture
-            showToast(getResources().getString(R.string.info_select_logimage_cancelled));
+            showToast(getString(R.string.info_select_logimage_cancelled));
             return;
         }
 
@@ -260,9 +262,7 @@ public class ImageSelectActivity extends AbstractActionBarActivity {
                         Log.e("ImageSelectActivity.onActivityResult", e);
                         showFailure();
                     } finally {
-                        if (cursor != null) {
-                            cursor.close();
-                        }
+                        IOUtils.closeQuietly(cursor);
                     }
 
                     Log.d("SELECT IMAGE data = " + data.toString());
@@ -292,7 +292,7 @@ public class ImageSelectActivity extends AbstractActionBarActivity {
         }
 
         if (requestCode == SELECT_NEW_IMAGE) {
-            showToast(getResources().getString(R.string.info_stored_image) + '\n' + image.getUrl());
+            showToast(getString(R.string.info_stored_image) + '\n' + image.getUrl());
         }
 
         loadImagePreview();
@@ -314,7 +314,7 @@ public class ImageSelectActivity extends AbstractActionBarActivity {
     }
 
     private void showFailure() {
-        showToast(getResources().getString(R.string.err_acquire_image_failed));
+        showToast(getString(R.string.err_acquire_image_failed));
     }
 
     private void loadImagePreview() {

@@ -1,9 +1,9 @@
 package cgeo.geocaching.export;
 
 import cgeo.geocaching.CgeoApplication;
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
 import cgeo.geocaching.activity.ActivityMixin;
+import cgeo.geocaching.models.Geocache;
 import cgeo.geocaching.settings.Settings;
 import cgeo.geocaching.utils.AsyncTaskWithProgress;
 import cgeo.geocaching.utils.EnvironmentUtils;
@@ -11,16 +11,12 @@ import cgeo.geocaching.utils.FileUtils;
 import cgeo.geocaching.utils.Log;
 import cgeo.geocaching.utils.ShareUtils;
 
-import org.apache.commons.lang3.CharEncoding;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.content.Context;
 import android.content.DialogInterface;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
-import android.view.ContextThemeWrapper;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.TextView;
@@ -38,6 +34,8 @@ import java.util.List;
 import java.util.Locale;
 
 import butterknife.ButterKnife;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.CharEncoding;
 
 public class GpxExport extends AbstractExport {
 
@@ -48,10 +46,10 @@ public class GpxExport extends AbstractExport {
     }
 
     @Override
-    public void export(final List<Geocache> caches, final Activity activity) {
+    public void export(@NonNull final List<Geocache> caches, @Nullable final Activity activity) {
         final String[] geocodes = getGeocodes(caches);
         calculateFileName(geocodes);
-        if (null == activity) {
+        if (activity == null) {
             // No activity given, so no user interaction possible.
             // Start export with default parameters.
             new ExportTask(null).execute(geocodes);
@@ -66,8 +64,7 @@ public class GpxExport extends AbstractExport {
         if (geocodes.length == 1) {
             // geocode as file name
             fileName = geocodes[0] + ".gpx";
-        }
-        else {
+        } else {
             // date and time as file name
             final SimpleDateFormat fileNameDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
             fileName = "export_" + fileNameDateFormat.format(new Date()) + ".gpx";
@@ -79,14 +76,7 @@ public class GpxExport extends AbstractExport {
         final AlertDialog.Builder builder = new AlertDialog.Builder(activity);
         builder.setTitle(activity.getString(R.string.export_confirm_title, activity.getString(R.string.export_gpx)));
 
-        final Context themedContext;
-        if (Settings.isLightSkin() && VERSION.SDK_INT < VERSION_CODES.HONEYCOMB) {
-            themedContext = new ContextThemeWrapper(activity, R.style.dark);
-        } else {
-            themedContext = activity;
-        }
-
-        final View layout = View.inflate(themedContext, R.layout.gpx_export_dialog, null);
+        final View layout = View.inflate(activity, R.layout.gpx_export_dialog, null);
         builder.setView(layout);
 
         final TextView text = ButterKnife.findById(layout, R.id.info);
@@ -95,11 +85,15 @@ public class GpxExport extends AbstractExport {
         final CheckBox shareOption = ButterKnife.findById(layout, R.id.share);
         shareOption.setChecked(Settings.getShareAfterExport());
 
+        final CheckBox includeFoundStatus = ButterKnife.findById(layout, R.id.include_found_status);
+        includeFoundStatus.setChecked(Settings.getIncludeFoundStatus());
+
         builder.setPositiveButton(R.string.export, new DialogInterface.OnClickListener() {
 
             @Override
             public void onClick(final DialogInterface dialog, final int which) {
                 Settings.setShareAfterExport(shareOption.isChecked());
+                Settings.setIncludeFoundStatus(includeFoundStatus.isChecked());
                 dialog.dismiss();
                 new ExportTask(activity).execute(geocodes);
             }
@@ -155,14 +149,7 @@ public class GpxExport extends AbstractExport {
                 });
             } catch (final IOException e) {
                 Log.e("GpxExport.ExportTask export", e);
-
-                if (writer != null) {
-                    try {
-                        writer.close();
-                    } catch (final IOException ignored) {
-                        // Ignore double error
-                    }
-                }
+                IOUtils.closeQuietly(writer);
                 // delete partial GPX file on error
                 if (exportFile.exists()) {
                     FileUtils.deleteIgnoringFailure(exportFile);
@@ -177,7 +164,7 @@ public class GpxExport extends AbstractExport {
         @Override
         protected void onPostExecuteInternal(final File exportFile) {
             final Activity activityLocal = activity;
-            if (null != activityLocal) {
+            if (activityLocal != null) {
                 if (exportFile != null) {
                     ActivityMixin.showToast(activityLocal, getName() + ' ' + activityLocal.getString(R.string.export_exportedto) + ": " + exportFile.toString());
                     if (Settings.getShareAfterExport()) {

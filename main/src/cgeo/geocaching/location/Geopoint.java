@@ -1,15 +1,16 @@
 package cgeo.geocaching.location;
 
-import cgeo.geocaching.ICoordinates;
 import cgeo.geocaching.R;
-
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
+import cgeo.geocaching.models.ICoordinates;
 
 import android.location.Location;
 import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Abstraction of geographic point. This class is immutable.
@@ -18,7 +19,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
     /**
      * Reusable default object
      */
-    public static final @NonNull Geopoint ZERO = new Geopoint(0.0, 0.0);
+    @NonNull public static final Geopoint ZERO = new Geopoint(0.0, 0.0);
 
     private static final double DEG_TO_RAD = Math.PI / 180;
     private static final double RAD_TO_DEG = 180 / Math.PI;
@@ -28,8 +29,8 @@ public final class Geopoint implements ICoordinates, Parcelable {
      */
     private static final boolean DISTANCE_BROKEN = Build.VERSION.SDK_INT == Build.VERSION_CODES.JELLY_BEAN_MR1;
 
-    private final double latitude;
-    private final double longitude;
+    private final int latitudeE6;
+    private final int longitudeE6;
 
     /**
      * Creates new Geopoint with given latitude and longitude (both degree).
@@ -40,8 +41,22 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *            longitude
      */
     public Geopoint(final double lat, final double lon) {
-        latitude = lat;
-        longitude = lon;
+        latitudeE6 = (int) Math.round(lat * 1e6);
+        longitudeE6 = (int) Math.round(lon * 1e6);
+    }
+
+    /**
+     * Creates new Geopoint with given latitude and longitude in microdegrees.
+     * The <tt>dummy</tt> parameter is ignored and is only used to prevent the wrong
+     * constructor from being used.
+     *
+     * @param latE6 latitude in microdegrees
+     * @param lonE6 longitude in microdegrees
+     * @param dummy ignored parameter
+     */
+    private Geopoint(final int latE6, final int lonE6, final Object dummy) {
+        latitudeE6 = latE6;
+        longitudeE6 = lonE6;
     }
 
     /**
@@ -55,8 +70,8 @@ public final class Geopoint implements ICoordinates, Parcelable {
      */
     public Geopoint(@NonNull final String text) {
         final Geopoint parsed = GeopointParser.parse(text);
-        latitude = parsed.latitude;
-        longitude = parsed.longitude;
+        latitudeE6 = parsed.latitudeE6;
+        longitudeE6 = parsed.longitudeE6;
     }
 
     /**
@@ -90,8 +105,8 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *            a Parcel to read the saved data from
      */
     public Geopoint(final Parcel in) {
-        latitude = in.readDouble();
-        longitude = in.readDouble();
+        latitudeE6 = in.readInt();
+        longitudeE6 = in.readInt();
     }
 
     /**
@@ -130,7 +145,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      * @return latitude
      */
     public double getLatitude() {
-        return latitude;
+        return latitudeE6 / 1e6;
     }
 
     /**
@@ -139,7 +154,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      * @return latitude
      */
     public int getLatitudeE6() {
-        return (int) Math.round(latitude * 1E6);
+        return latitudeE6;
     }
 
     /**
@@ -148,7 +163,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      * @return longitude
      */
     public double getLongitude() {
-        return longitude;
+        return longitudeE6 / 1e6;
     }
 
     /*
@@ -157,8 +172,10 @@ public final class Geopoint implements ICoordinates, Parcelable {
      * seconds decimal point, a rounding factor of 3600*1000 would be appropriate.
      */
     Geopoint roundedAt(final long factor) {
-        return new Geopoint(((double) Math.round(latitude * factor)) / factor,
-                            ((double) Math.round(longitude * factor)) / factor);
+        final double df = 1e6d / factor;
+        return new Geopoint((int) Math.round(Math.round(getLatitudeE6() / df) * df),
+                (int) Math.round(Math.round(getLongitudeE6() / df) * df),
+                this);
     }
 
     /**
@@ -167,7 +184,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      * @return longitude
      */
     public int getLongitudeE6() {
-        return (int) Math.round(longitude * 1E6);
+        return longitudeE6;
     }
 
     /**
@@ -179,7 +196,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      */
     private float[] pathTo(final Geopoint target) {
         final float[] results = new float[2];
-        Location.distanceBetween(latitude, longitude, target.latitude, target.longitude, results);
+        Location.distanceBetween(getLatitude(), getLongitude(), target.getLatitude(), target.getLongitude(), results);
         return results;
     }
 
@@ -195,7 +212,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
     public float distanceTo(@NonNull final ICoordinates point) {
         final Geopoint otherCoords = point.getCoords();
         if (DISTANCE_BROKEN) {
-            return (float) (getDistance(latitude, longitude, otherCoords.latitude, otherCoords.longitude) / 1000);
+            return (float) (getDistance(getLatitude(), getLongitude(), otherCoords.getLatitude(), otherCoords.getLongitude()) / 1000);
         }
         return pathTo(otherCoords)[0] / 1000;
     }
@@ -223,8 +240,8 @@ public final class Geopoint implements ICoordinates, Parcelable {
      * @return the projected geopoint
      */
     public Geopoint project(final double bearing, final double distance) {
-        final double rlat1 = latitude * DEG_TO_RAD;
-        final double rlon1 = longitude * DEG_TO_RAD;
+        final double rlat1 = getLatitude() * DEG_TO_RAD;
+        final double rlon1 = getLongitude() * DEG_TO_RAD;
         final double rbearing = bearing * DEG_TO_RAD;
         final double rdistance = distance / EARTH_RADIUS;
 
@@ -274,7 +291,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
         return format(GeopointFormatter.Format.LAT_LON_DECMINUTE);
     }
 
-    abstract public static class GeopointException extends NumberFormatException {
+    public abstract static class GeopointException extends NumberFormatException {
         private static final long serialVersionUID = 1L;
 
         protected GeopointException(final String msg) {
@@ -304,8 +321,8 @@ public final class Geopoint implements ICoordinates, Parcelable {
 
     @Override
     public void writeToParcel(final Parcel dest, final int flags) {
-        dest.writeDouble(latitude);
-        dest.writeDouble(longitude);
+        dest.writeInt(latitudeE6);
+        dest.writeInt(longitudeE6);
     }
 
     public static final Parcelable.Creator<Geopoint> CREATOR = new Parcelable.Creator<Geopoint>() {
@@ -325,7 +342,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public char getLatDir() {
-        return latitude >= 0 ? 'N' : 'S';
+        return latitudeE6 >= 0 ? 'N' : 'S';
     }
 
     /**
@@ -333,7 +350,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public char getLonDir() {
-        return longitude >= 0 ? 'E' : 'W';
+        return longitudeE6 >= 0 ? 'E' : 'W';
     }
 
     /**
@@ -341,7 +358,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public int getLatDeg() {
-        return getDeg(latitude);
+        return getDeg(getLatitudeE6());
     }
 
     /**
@@ -349,11 +366,11 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public int getLonDeg() {
-        return getDeg(longitude);
+        return getDeg(getLongitudeE6());
     }
 
-    private static int getDeg(final double deg) {
-        return (int) Math.abs(deg);
+    private static int getDeg(final int degE6) {
+        return Math.abs(degE6 / 1000000);
     }
 
     /**
@@ -361,7 +378,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public int getLatDegFrac() {
-        return getDegFrac(latitude);
+        return getDegFrac(getLatitudeE6());
     }
 
     /**
@@ -369,11 +386,11 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public int getLonDegFrac() {
-        return getDegFrac(longitude);
+        return getDegFrac(getLongitudeE6());
     }
 
-    private static int getDegFrac(final double deg) {
-        return (int) (Math.round(Math.abs(deg) * 100000) % 100000);
+    private static int getDegFrac(final int degE6) {
+        return Math.min(99999, (int) Math.round((Math.abs(degE6) % 1000000) / 10.0d));
     }
 
     /**
@@ -381,7 +398,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public int getLatMin() {
-        return getMin(latitude);
+        return getMin(getLatitudeE6());
     }
 
     /**
@@ -389,11 +406,11 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public int getLonMin() {
-        return getMin(longitude);
+        return getMin(getLongitudeE6());
     }
 
-    private static int getMin(final double deg) {
-        return ((int) Math.abs(deg * 60)) % 60;
+    private static int getMin(final int degE6) {
+        return (int) ((Math.abs(degE6) * 60L / 1000000L) % 60L);
     }
 
     /**
@@ -401,7 +418,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public int getLatMinFrac() {
-        return getMinFrac(latitude);
+        return getMinFrac(getLatitudeE6());
     }
 
     /**
@@ -409,11 +426,11 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public int getLonMinFrac() {
-        return getMinFrac(longitude);
+        return getMinFrac(getLongitudeE6());
     }
 
-    private static int getMinFrac(final double deg) {
-        return (int) (Math.round(Math.abs(deg) * 60000) % 1000);
+    private static int getMinFrac(final int degE6) {
+        return (int) Math.min(999L, Math.round((Math.abs(degE6) * 60L) % 1000000L / 1000d));
     }
 
     /**
@@ -421,7 +438,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public double getLatMinRaw() {
-        return getMinRaw(latitude);
+        return getMinRaw(getLatitudeE6());
     }
 
     /**
@@ -429,11 +446,11 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public double getLonMinRaw() {
-        return getMinRaw(longitude);
+        return getMinRaw(getLongitudeE6());
     }
 
-    private static double getMinRaw(final double deg) {
-        return (Math.abs(deg) * 60) % 60;
+    private static double getMinRaw(final int degE6) {
+        return (Math.abs(degE6) * 60L % 60000000L) / 1000000d;
     }
 
     /**
@@ -441,7 +458,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public int getLatSec() {
-        return getSec(latitude);
+        return getSec(getLatitudeE6());
     }
 
     /**
@@ -449,11 +466,11 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public int getLonSec() {
-        return getSec(longitude);
+        return getSec(getLongitudeE6());
     }
 
-    private static int getSec(final double deg) {
-        return ((int) Math.abs(deg * 3600)) % 60;
+    private static int getSec(final int degE6) {
+        return (int) ((Math.abs(degE6) * 3600L / 1000000L) % 60L);
     }
 
     /**
@@ -462,7 +479,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      */
 
     public int getLatSecFrac() {
-        return getSecFrac(latitude);
+        return getSecFrac(getLatitudeE6());
     }
 
     /**
@@ -471,11 +488,11 @@ public final class Geopoint implements ICoordinates, Parcelable {
      */
 
     public int getLonSecFrac() {
-        return getSecFrac(longitude);
+        return getSecFrac(getLongitudeE6());
     }
 
-    private static int getSecFrac(final double deg) {
-        return (int) (Math.round(Math.abs(deg) * 3600000) % 1000);
+    private static int getSecFrac(final int degE6) {
+        return (int) (Math.min(999L, Math.round(Math.abs(degE6) * 3600L % 1000000L) / 1000d));
     }
 
     /**
@@ -483,7 +500,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public double getLatSecRaw() {
-        return getSecRaw(latitude);
+        return getSecRaw(getLatitudeE6());
     }
 
     /**
@@ -491,11 +508,11 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      */
     public double getLonSecRaw() {
-        return getSecRaw(longitude);
+        return getSecRaw(getLongitudeE6());
     }
 
-    private static double getSecRaw(final double deg) {
-        return (Math.abs(deg) * 3600) % 60;
+    private static double getSecRaw(final int degE6) {
+        return ((Math.abs(degE6) * 3600L) % 60000000L) / 1000000d;
     }
 
     private static String addZeros(final String value, final int len) {
@@ -513,7 +530,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
     /**
      * Gets distance in meters (workaround for 4.2.1 JIT bug).
      */
-    public static double getDistance(final double lat1, final double lon1, final double lat2, final double lon2) {
+    private static double getDistance(final double lat1, final double lon1, final double lat2, final double lon2) {
         // for haversine use R = 6372.8 km instead of 6371 km
         final double earthRadius = 6372.8;
         final double dLat = toRadians(lat2 - lat1);
@@ -522,7 +539,7 @@ public final class Geopoint implements ICoordinates, Parcelable {
                 Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
                 Math.sin(dLon / 2) * Math.sin(dLon / 2);
         // simplify haversine
-        return (2 * earthRadius * 1000 * Math.asin(Math.sqrt(a)));
+        return 2 * earthRadius * 1000 * Math.asin(Math.sqrt(a));
     }
 
     private static double toRadians(final double angdeg) {
@@ -534,16 +551,16 @@ public final class Geopoint implements ICoordinates, Parcelable {
      *
      * @return <tt>true</tt> if the latitude looks valid, <tt>false</tt> otherwise
      */
-    public static boolean isValidLatitude(final double latitude) {
+    static boolean isValidLatitude(final double latitude) {
         return latitude >= -90 && latitude <= 90;
     }
 
     /**
      * Check whether a longitude from user supplied data is valid. We accept both E180/W180.
-     * 
+     *
      * @return <tt>true</tt> if the longitude looks valid, <tt>false</tt> otherwise
      */
-    public static boolean isValidLongitude(final double longitude) {
+    static boolean isValidLongitude(final double longitude) {
         return longitude >= -180 && longitude <= 180;
     }
 
@@ -553,7 +570,19 @@ public final class Geopoint implements ICoordinates, Parcelable {
      * @return <tt>true</tt> if the geopoint looks valid, <tt>false</tt> otherwise
      */
     public boolean isValid() {
-        return isValidLatitude(latitude) && isValidLongitude(longitude);
+        return isValidLatitude(getLatitude()) && isValidLongitude(getLongitude());
+    }
+
+    /**
+     * Check whether two geopoints represent the same latitude and longitude or are both <tt>null</tt>.
+     *
+     * @param p1 the first Geopoint, or <tt>null</tt>
+     * @param p2 the second Geopoint, or <tt>null</tt>
+     * @return <tt>true</tt> if both geopoints represent the same latitude and longitude or are both <tt>null</tt>,
+     *         <tt>false</tt> otherwise
+     */
+    public static boolean equals(@Nullable final Geopoint p1, @Nullable final Geopoint p2) {
+        return p1 == null ? p2 == null : p2 != null && p1.equals(p2);
     }
 
 }

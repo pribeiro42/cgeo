@@ -1,10 +1,10 @@
 package cgeo.geocaching.sorting;
 
-import cgeo.geocaching.Geocache;
+import cgeo.geocaching.models.Geocache;
 
 /**
  * comparator which inverses the sort order of the given other comparator
- * 
+ *
  */
 public class InverseComparator implements CacheComparator {
 
@@ -17,6 +17,11 @@ public class InverseComparator implements CacheComparator {
     @Override
     public int compare(final Geocache lhs, final Geocache rhs) {
         return originalComparator.compare(rhs, lhs);
+    }
+
+    @Override
+    public boolean isAutoManaged() {
+        return originalComparator.isAutoManaged();
     }
 
 }

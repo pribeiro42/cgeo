@@ -5,9 +5,10 @@ import cgeo.geocaching.connector.IConnector;
 import cgeo.geocaching.connector.gc.MapTokens;
 import cgeo.geocaching.location.Viewport;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 public interface ISearchByViewPort extends IConnector {
     @NonNull
-    public SearchResult searchByViewport(final @NonNull Viewport viewport, @NonNull final MapTokens tokens);
+    SearchResult searchByViewport(@NonNull final Viewport viewport, @Nullable final MapTokens tokens);
 }

@@ -4,27 +4,27 @@ import cgeo.geocaching.SearchResult;
 import cgeo.geocaching.connector.ConnectorFactory;
 import cgeo.geocaching.connector.capability.ISearchByOwner;
 
-import org.eclipse.jdt.annotation.NonNull;
-import rx.functions.Func1;
+import android.app.Activity;
+import android.support.annotation.NonNull;
 
-import android.content.Context;
+import io.reactivex.functions.Function;
 
 public class OwnerGeocacheListLoader extends AbstractSearchLoader {
 
-    private final @NonNull String username;
+    @NonNull private final String username;
 
-    public OwnerGeocacheListLoader(final Context context, final @NonNull String username) {
-        super(context);
+    public OwnerGeocacheListLoader(final Activity activity, @NonNull final String username) {
+        super(activity);
         this.username = username;
     }
 
     @Override
     public SearchResult runSearch() {
-        return SearchResult.parallelCombineActive(ConnectorFactory.getSearchByOwnerConnectors(),
-                new Func1<ISearchByOwner, SearchResult>() {
+        return nonEmptyCombineActive(ConnectorFactory.getSearchByOwnerConnectors(),
+                new Function<ISearchByOwner, SearchResult>() {
                     @Override
-                    public SearchResult call(final ISearchByOwner connector) {
-                        return connector.searchByOwner(username, OwnerGeocacheListLoader.this);
+                    public SearchResult apply(final ISearchByOwner connector) {
+                        return connector.searchByOwner(username);
             }
         });
     }

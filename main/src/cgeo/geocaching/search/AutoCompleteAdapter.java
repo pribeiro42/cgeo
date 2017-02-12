@@ -1,10 +1,11 @@
 package cgeo.geocaching.search;
 
+import cgeo.geocaching.utils.functions.Func1;
+
 import org.apache.commons.lang3.StringUtils;
 
-import rx.functions.Func1;
-
 import android.content.Context;
+import android.support.annotation.LayoutRes;
 import android.widget.ArrayAdapter;
 import android.widget.Filter;
 
@@ -15,11 +16,11 @@ import android.widget.Filter;
  */
 public class AutoCompleteAdapter extends ArrayAdapter<String> {
 
-    private final static String[] EMPTY = new String[0];
+    private static final String[] EMPTY = new String[0];
     private String[] suggestions = EMPTY;
     private final Func1<String, String[]> suggestionFunction;
 
-    public AutoCompleteAdapter(final Context context, final int textViewResourceId, final Func1<String, String[]> suggestionFunction) {
+    public AutoCompleteAdapter(final Context context, @LayoutRes final int textViewResourceId, final Func1<String, String[]> suggestionFunction) {
         super(context, textViewResourceId);
         this.suggestionFunction = suggestionFunction;
     }
@@ -61,8 +62,7 @@ public class AutoCompleteAdapter extends ArrayAdapter<String> {
                 if (filterResults != null && filterResults.count > 0) {
                     suggestions = (String[]) filterResults.values;
                     notifyDataSetChanged();
-                }
-                else {
+                } else {
                     notifyDataSetInvalidated();
                 }
             }

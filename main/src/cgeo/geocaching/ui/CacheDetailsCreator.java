@@ -1,17 +1,19 @@
 package cgeo.geocaching.ui;
 
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.ICoordinates;
 import cgeo.geocaching.R;
-import cgeo.geocaching.Waypoint;
 import cgeo.geocaching.connector.ConnectorFactory;
 import cgeo.geocaching.location.Units;
+import cgeo.geocaching.log.LogEntry;
+import cgeo.geocaching.log.LogType;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.ICoordinates;
+import cgeo.geocaching.models.Waypoint;
 import cgeo.geocaching.sensors.Sensors;
 import cgeo.geocaching.utils.Formatter;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -24,6 +26,7 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import butterknife.ButterKnife;
 
@@ -33,7 +36,6 @@ import butterknife.ButterKnife;
 public final class CacheDetailsCreator {
     private final Activity activity;
     private final ViewGroup parentView;
-    private TextView lastValueView;
     private final Resources res;
 
     public CacheDetailsCreator(final Activity activity, final ViewGroup parentView) {
@@ -54,27 +56,23 @@ public final class CacheDetailsCreator {
         final RelativeLayout layout = (RelativeLayout) activity.getLayoutInflater().inflate(R.layout.cache_information_item, null, false);
         final TextView nameView = ButterKnife.findById(layout, R.id.name);
         nameView.setText(res.getString(nameId));
-        lastValueView = ButterKnife.findById(layout, R.id.value);
-        lastValueView.setText(value);
+        final TextView valueView = ButterKnife.findById(layout, R.id.value);
+        valueView.setText(value);
         parentView.addView(layout);
-        return ImmutablePair.of(layout, lastValueView);
-    }
-
-    public TextView getValueView() {
-        return lastValueView;
+        return ImmutablePair.of(layout, valueView);
     }
 
     public RelativeLayout addStars(final int nameId, final float value) {
         return addStars(nameId, value, 5);
     }
 
-    public RelativeLayout addStars(final int nameId, final float value, final int max) {
+    private RelativeLayout addStars(final int nameId, final float value, final int max) {
         final RelativeLayout layout = (RelativeLayout) activity.getLayoutInflater().inflate(R.layout.cache_information_item, null, false);
         final TextView nameView = ButterKnife.findById(layout, R.id.name);
-        lastValueView = ButterKnife.findById(layout, R.id.value);
+        final TextView valueView = ButterKnife.findById(layout, R.id.value);
 
-        nameView.setText(activity.getResources().getString(nameId));
-        lastValueView.setText(String.format("%.1f", value) + ' ' + activity.getResources().getString(R.string.cache_rating_of) + " " + String.format("%d", max));
+        nameView.setText(activity.getString(nameId));
+        valueView.setText(String.format(Locale.getDefault(), "%.1f", value) + ' ' + activity.getString(R.string.cache_rating_of) + ' ' + String.format(Locale.getDefault(), "%d", max));
 
         final RatingBar layoutStars = ButterKnife.findById(layout, R.id.stars);
         layoutStars.setNumStars(max);
@@ -86,26 +84,33 @@ public final class CacheDetailsCreator {
     }
 
     public void addCacheState(final Geocache cache) {
-        if (cache.isLogOffline() || cache.isArchived() || cache.isDisabled() || cache.isPremiumMembersOnly() || cache.isFound()) {
-            final List<String> states = new ArrayList<>(5);
-            String date = getVisitedDate(cache);
-            if (cache.isLogOffline()) {
-                states.add(res.getString(R.string.cache_status_offline_log) + date);
-                // reset the found date, to avoid showing it twice
-                date = "";
+        final List<String> states = new ArrayList<>(5);
+        String date = getVisitedDate(cache);
+        if (cache.isLogOffline()) {
+            states.add(res.getString(R.string.cache_status_offline_log) + date);
+            // reset the found date, to avoid showing it twice
+            date = "";
+        }
+        if (cache.isFound()) {
+            states.add(res.getString(R.string.cache_status_found) + date);
+        }
+        if (cache.isEventCache() && states.isEmpty()) {
+            for (final LogEntry log : cache.getLogs()) {
+                if (log.getType() == LogType.WILL_ATTEND && log.isOwn()) {
+                    states.add(LogType.WILL_ATTEND.getL10n());
+                }
             }
-            if (cache.isFound()) {
-                states.add(res.getString(R.string.cache_status_found) + date);
-            }
-            if (cache.isArchived()) {
-                states.add(res.getString(R.string.cache_status_archived));
-            }
-            if (cache.isDisabled()) {
-                states.add(res.getString(R.string.cache_status_disabled));
-            }
-            if (cache.isPremiumMembersOnly()) {
-                states.add(res.getString(R.string.cache_status_premium));
-            }
+        }
+        if (cache.isArchived()) {
+            states.add(res.getString(R.string.cache_status_archived));
+        }
+        if (cache.isDisabled()) {
+            states.add(res.getString(R.string.cache_status_disabled));
+        }
+        if (cache.isPremiumMembersOnly()) {
+            states.add(res.getString(R.string.cache_status_premium));
+        }
+        if (!states.isEmpty()) {
             add(R.string.cache_status, StringUtils.join(states, ", "));
         }
     }
@@ -151,37 +156,33 @@ public final class CacheDetailsCreator {
         }
     }
 
-    public void addDistance(final Geocache cache, final TextView cacheDistanceView) {
+    public TextView addDistance(final Geocache cache, final TextView cacheDistanceView) {
         Float distance = distanceNonBlocking(cache);
-        if (distance == null) {
-            if (cache.getDistance() != null) {
-                distance = cache.getDistance();
-            }
+        if (distance == null && cache.getDistance() != null) {
+            distance = cache.getDistance();
         }
         String text = "--";
         if (distance != null) {
             text = Units.getDistanceFromKilometers(distance);
-        }
-        else if (cacheDistanceView != null) {
+        } else if (cacheDistanceView != null) {
             // if there is already a distance in cacheDistance, use it instead of resetting to default.
             // this prevents displaying "--" while waiting for a new position update (See bug #1468)
             text = cacheDistanceView.getText().toString();
         }
-        add(R.string.cache_distance, text);
+        return add(R.string.cache_distance, text).right;
     }
 
-    public void addDistance(final Waypoint wpt, final TextView waypointDistanceView) {
+    public TextView addDistance(final Waypoint wpt, final TextView waypointDistanceView) {
         final Float distance = distanceNonBlocking(wpt);
         String text = "--";
         if (distance != null) {
             text = Units.getDistanceFromKilometers(distance);
-        }
-        else if (waypointDistanceView != null) {
+        } else if (waypointDistanceView != null) {
             // if there is already a distance in waypointDistance, use it instead of resetting to default.
             // this prevents displaying "--" while waiting for a new position update (See bug #1468)
             text = waypointDistanceView.getText().toString();
         }
-        add(R.string.cache_distance, text);
+        return add(R.string.cache_distance, text).right;
     }
 
     public void addEventDate(@NonNull final Geocache cache) {
@@ -191,7 +192,7 @@ public final class CacheDetailsCreator {
         addHiddenDate(cache);
     }
 
-    public TextView addHiddenDate(final @NonNull Geocache cache) {
+    public TextView addHiddenDate(@NonNull final Geocache cache) {
         final String dateString = Formatter.formatHiddenDate(cache);
         if (StringUtils.isEmpty(dateString)) {
             return null;

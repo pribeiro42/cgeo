@@ -9,12 +9,13 @@ import cgeo.geocaching.maps.interfaces.MapProvider;
 import cgeo.geocaching.maps.interfaces.MapSource;
 import cgeo.geocaching.settings.Settings;
 import cgeo.geocaching.utils.Log;
+import cgeo.geocaching.utils.TextUtils;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.mapsforge.android.maps.mapgenerator.MapGeneratorInternal;
-import org.mapsforge.map.reader.MapDatabase;
-import org.mapsforge.map.reader.header.FileOpenResult;
+import org.mapsforge.v3.android.maps.mapgenerator.MapGeneratorInternal;
+import org.mapsforge.v3.map.reader.MapDatabase;
+import org.mapsforge.v3.map.reader.header.FileOpenResult;
 
 import android.app.Activity;
 import android.content.res.Resources;
@@ -60,13 +61,11 @@ public final class MapsforgeMapProvider extends AbstractMapProvider {
                 final File[] files = directory.listFiles();
                 if (ArrayUtils.isNotEmpty(files)) {
                     for (final File file : files) {
-                        if (file.getName().endsWith(".map")) {
-                            if (isValidMapFile(file.getAbsolutePath())) {
-                                mapFileList.add(file.getAbsolutePath());
-                            }
+                        if (file.getName().endsWith(".map") && isValidMapFile(file.getAbsolutePath())) {
+                            mapFileList.add(file.getAbsolutePath());
                         }
                     }
-                    Collections.sort(mapFileList, String.CASE_INSENSITIVE_ORDER);
+                    Collections.sort(mapFileList, TextUtils.COLLATOR);
                 }
                 return mapFileList;
             } catch (final Exception e) {

@@ -2,15 +2,13 @@ package cgeo.geocaching.network;
 
 import cgeo.geocaching.utils.CryptUtils;
 
-import ch.boye.httpclientandroidlib.NameValuePair;
-
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class OAuth {
+    private OAuth() {
+        // utility class
+    }
+
     public static void signOAuth(final String host,
             final String path,
             final String method,
@@ -26,23 +24,24 @@ public class OAuth {
                 "oauth_timestamp", Long.toString(System.currentTimeMillis() / 1000),
                 "oauth_token", StringUtils.defaultString(tokens.getTokenPublic()),
                 "oauth_version", "1.0");
+        params.put("oauth_signature",
+                signCompletedOAuth(host, path, method, https, params, tokens.getTokenSecret(), consumerSecret));
+    }
+
+    static String signCompletedOAuth(final String host, final String path, final String method, final boolean https,
+                                     final Parameters params, final String tokenSecret, final String consumerSecret) {
         params.sort();
 
-        final List<String> paramsEncoded = new ArrayList<>();
-        for (final NameValuePair nameValue : params) {
-            paramsEncoded.add(nameValue.getName() + "=" + percentEncode(nameValue.getValue()));
-        }
+        // Twitter requires that the signature is generated from the raw data that is received in the query string.
+        // Opencaching sites require that the signature is generated from the percent-encoded versions of the parameters.
+        // As a consequence, we will always use percent-encoding for parameters during the OAuth signing process, which
+        // satisfies both constraints.
+        params.usePercentEncoding();
 
-        final String keysPacked = consumerSecret + "&" + StringUtils.defaultString(tokens.getTokenSecret()); // both even if empty some of them!
-        final @NonNull String joinedParams = StringUtils.join(paramsEncoded.toArray(), '&');
-        final String requestPacked = method + "&" + percentEncode((https ? "https" : "http") + "://" + host + path) + "&" + percentEncode(joinedParams);
-        params.put("oauth_signature", CryptUtils.base64Encode(CryptUtils.hashHmac(requestPacked, keysPacked)));
+        final String requestPacked = method + '&' + Parameters.percentEncode((https ? "https" : "http") + "://" + host + path) + '&' +
+                Parameters.percentEncode(params.toString());
+        final String keysPacked = Parameters.percentEncode(consumerSecret) + '&' + Parameters.percentEncode(StringUtils.defaultString(tokenSecret)); // both even if empty some of them!
+        return CryptUtils.base64Encode(CryptUtils.hashHmac(requestPacked, keysPacked));
     }
 
-    /**
-     * Percent encode following http://tools.ietf.org/html/rfc5849#section-3.6
-     */
-    static String percentEncode(@NonNull final String url) {
-        return StringUtils.replace(Network.rfc3986URLEncode(url), "*", "%2A");
-    }
 }

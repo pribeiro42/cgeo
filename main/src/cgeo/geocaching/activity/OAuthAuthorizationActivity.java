@@ -1,42 +1,38 @@
 package cgeo.geocaching.activity;
 
-import butterknife.Bind;
-
 import cgeo.geocaching.Intents;
 import cgeo.geocaching.R;
 import cgeo.geocaching.network.Network;
 import cgeo.geocaching.network.OAuth;
 import cgeo.geocaching.network.OAuthTokens;
 import cgeo.geocaching.network.Parameters;
+import cgeo.geocaching.ui.dialog.Dialogs;
+import cgeo.geocaching.utils.AndroidRxUtils;
 import cgeo.geocaching.utils.BundleUtils;
 import cgeo.geocaching.utils.Log;
 import cgeo.geocaching.utils.MatcherWrapper;
-import cgeo.geocaching.utils.RxUtils;
 
-import ch.boye.httpclientandroidlib.HttpResponse;
-import ch.boye.httpclientandroidlib.ParseException;
-import ch.boye.httpclientandroidlib.client.entity.UrlEncodedFormEntity;
-import ch.boye.httpclientandroidlib.util.EntityUtils;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-
-import rx.functions.Action0;
-
+import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import java.io.IOException;
 import java.util.regex.Pattern;
+
+import butterknife.BindView;
+import okhttp3.HttpUrl;
+import okhttp3.Response;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 public abstract class OAuthAuthorizationActivity extends AbstractActivity {
 
@@ -57,11 +53,13 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
     @NonNull private String consumerKey = StringUtils.EMPTY;
     @NonNull private String consumerSecret = StringUtils.EMPTY;
     @NonNull private String callback = StringUtils.EMPTY;
-    private String OAtoken = null;
-    private String OAtokenSecret = null;
-    @Bind(R.id.start) protected Button startButton;
-    @Bind(R.id.auth_1) protected TextView auth_1;
-    @Bind(R.id.auth_2) protected TextView auth_2;
+    private String oAtoken = null;
+    private String oAtokenSecret = null;
+
+    @BindView(R.id.start) protected Button startButton;
+    @BindView(R.id.register) protected Button registerButton;
+    @BindView(R.id.auth_1) protected TextView auth1;
+    @BindView(R.id.auth_2) protected TextView auth2;
     private ProgressDialog requestTokenDialog = null;
     private ProgressDialog changeTokensDialog = null;
 
@@ -95,10 +93,7 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
 
         @Override
         public void handleMessage(final Message msg) {
-            if (changeTokensDialog != null && changeTokensDialog.isShowing()) {
-                changeTokensDialog.dismiss();
-            }
-
+            Dialogs.dismiss(changeTokensDialog);
             if (msg.what == AUTHENTICATED) {
                 showToast(getAuthDialogCompleted());
                 setResult(RESULT_OK);
@@ -128,18 +123,26 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
 
         setTitle(getAuthTitle());
 
-        auth_1.setText(getAuthExplainShort());
-        auth_2.setText(getAuthExplainLong());
+        auth1.setText(getAuthExplainShort());
+        auth2.setText(getAuthExplainLong());
 
         final ImmutablePair<String, String> tempToken = getTempTokens();
-        OAtoken = tempToken.left;
-        OAtokenSecret = tempToken.right;
+        oAtoken = tempToken.left;
+        oAtokenSecret = tempToken.right;
 
         startButton.setText(getAuthAuthorize());
         startButton.setEnabled(true);
         startButton.setOnClickListener(new StartListener());
 
-        if (StringUtils.isBlank(OAtoken) && StringUtils.isBlank(OAtokenSecret)) {
+        if (StringUtils.isEmpty(getCreateAccountUrl())) {
+            registerButton.setVisibility(View.GONE);
+        } else {
+            registerButton.setText(getAuthRegister());
+            registerButton.setEnabled(true);
+            registerButton.setOnClickListener(new RegisterListener());
+        }
+
+        if (StringUtils.isBlank(oAtoken) && StringUtils.isBlank(oAtokenSecret)) {
             // start authorization process
             startButton.setText(getAuthStart());
         } else {
@@ -174,46 +177,47 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
         params.put("oauth_callback", callback);
         final String method = "GET";
         OAuth.signOAuth(host, pathRequest, method, https, params, new OAuthTokens(null, null), consumerKey, consumerSecret);
-        final HttpResponse response = Network.getRequest(getUrlPrefix() + host + pathRequest, params);
 
-        if (Network.isSuccess(response)) {
-            final String line = Network.getResponseData(response);
+        try {
+            final Response response = Network.getRequest(getUrlPrefix() + host + pathRequest, params).blockingGet();
 
-            int status = STATUS_ERROR;
-            if (StringUtils.isNotBlank(line)) {
-                assert line != null;
-                final MatcherWrapper paramsMatcher1 = new MatcherWrapper(PARAMS_PATTERN_1, line);
-                if (paramsMatcher1.find()) {
-                    OAtoken = paramsMatcher1.group(1);
-                }
-                final MatcherWrapper paramsMatcher2 = new MatcherWrapper(PARAMS_PATTERN_2, line);
-                if (paramsMatcher2.find()) {
-                    OAtokenSecret = paramsMatcher2.group(1);
-                }
+            if (response.isSuccessful()) {
+                final String line = Network.getResponseData(response);
 
-                if (StringUtils.isNotBlank(OAtoken) && StringUtils.isNotBlank(OAtokenSecret)) {
-                    setTempTokens(OAtoken, OAtokenSecret);
-                    try {
-                        final Parameters paramsBrowser = new Parameters();
-                        paramsBrowser.put("oauth_token", OAtoken);
-                        final String encodedParams = EntityUtils.toString(new UrlEncodedFormEntity(paramsBrowser));
-                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(getUrlPrefix() + host + pathAuthorize + "?" + encodedParams)));
+                int status = STATUS_ERROR;
+                if (StringUtils.isNotBlank(line)) {
+                    assert line != null;
+                    final MatcherWrapper paramsMatcher1 = new MatcherWrapper(PARAMS_PATTERN_1, line);
+                    if (paramsMatcher1.find()) {
+                        oAtoken = paramsMatcher1.group(1);
+                    }
+                    final MatcherWrapper paramsMatcher2 = new MatcherWrapper(PARAMS_PATTERN_2, line);
+                    if (paramsMatcher2.find()) {
+                        oAtokenSecret = paramsMatcher2.group(1);
+                    }
+
+                    if (StringUtils.isNotBlank(oAtoken) && StringUtils.isNotBlank(oAtokenSecret)) {
+                        setTempTokens(oAtoken, oAtokenSecret);
+                        final HttpUrl url = HttpUrl.parse(getUrlPrefix() + host + pathAuthorize)
+                                .newBuilder().addQueryParameter("oauth_token", oAtoken).build();
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url.toString())));
                         status = STATUS_SUCCESS;
-                    } catch (ParseException | IOException e) {
-                        Log.e("OAuthAuthorizationActivity.requestToken", e);
                     }
                 }
-            }
 
-            requestTokenHandler.sendEmptyMessage(status);
-        } else {
-            final String extErrMsg = getExtendedErrorMsg(response);
-            if (StringUtils.isNotBlank(extErrMsg)) {
-                final Message msg = requestTokenHandler.obtainMessage(STATUS_ERROR_EXT_MSG, extErrMsg);
-                requestTokenHandler.sendMessage(msg);
+                requestTokenHandler.sendEmptyMessage(status);
             } else {
-                requestTokenHandler.sendEmptyMessage(STATUS_ERROR);
+                final String extErrMsg = getExtendedErrorMsg(response);
+                if (StringUtils.isNotBlank(extErrMsg)) {
+                    final Message msg = requestTokenHandler.obtainMessage(STATUS_ERROR_EXT_MSG, extErrMsg);
+                    requestTokenHandler.sendMessage(msg);
+                } else {
+                    requestTokenHandler.sendEmptyMessage(STATUS_ERROR);
+                }
             }
+        } catch (final RuntimeException ignored) {
+            Log.e("requestToken: cannot get token");
+            requestTokenHandler.sendEmptyMessage(STATUS_ERROR);
         }
     }
 
@@ -225,27 +229,27 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
             final Parameters params = new Parameters("oauth_verifier", verifier);
 
             final String method = "POST";
-            OAuth.signOAuth(host, pathAccess, method, https, params, new OAuthTokens(OAtoken, OAtokenSecret), consumerKey, consumerSecret);
+            OAuth.signOAuth(host, pathAccess, method, https, params, new OAuthTokens(oAtoken, oAtokenSecret), consumerKey, consumerSecret);
             final String line = StringUtils.defaultString(Network.getResponseData(Network.postRequest(getUrlPrefix() + host + pathAccess, params)));
 
-            OAtoken = "";
-            OAtokenSecret = "";
+            oAtoken = "";
+            oAtokenSecret = "";
 
             final MatcherWrapper paramsMatcher1 = new MatcherWrapper(PARAMS_PATTERN_1, line);
             if (paramsMatcher1.find()) {
-                OAtoken = paramsMatcher1.group(1);
+                oAtoken = paramsMatcher1.group(1);
             }
             final MatcherWrapper paramsMatcher2 = new MatcherWrapper(PARAMS_PATTERN_2, line);
             if (paramsMatcher2.find() && paramsMatcher2.groupCount() > 0) {
-                OAtokenSecret = paramsMatcher2.group(1);
+                oAtokenSecret = paramsMatcher2.group(1);
             }
 
-            if (StringUtils.isBlank(OAtoken) && StringUtils.isBlank(OAtokenSecret)) {
-                OAtoken = "";
-                OAtokenSecret = "";
+            if (StringUtils.isBlank(oAtoken) && StringUtils.isBlank(oAtokenSecret)) {
+                oAtoken = "";
+                oAtokenSecret = "";
                 setTokens(null, null, false);
             } else {
-                setTokens(OAtoken, OAtokenSecret, true);
+                setTokens(oAtoken, oAtokenSecret, true);
                 status = AUTHENTICATED;
             }
         } catch (final Exception e) {
@@ -274,12 +278,26 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
             startButton.setOnClickListener(null);
 
             setTempTokens(null, null);
-            RxUtils.networkScheduler.createWorker().schedule(new Action0() {
+            AndroidRxUtils.networkScheduler.scheduleDirect(new Runnable() {
                 @Override
-                public void call() {
+                public void run() {
                     requestToken();
                 }
             });
+        }
+    }
+
+    private class RegisterListener implements View.OnClickListener {
+
+        @Override
+        public void onClick(final View view) {
+            final Activity activity = OAuthAuthorizationActivity.this;
+            try {
+                activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(getCreateAccountUrl())));
+            } catch (final ActivityNotFoundException e) {
+                Log.e("Cannot find suitable activity", e);
+                ActivityMixin.showToast(activity, R.string.err_application_no);
+            }
         }
     }
 
@@ -291,14 +309,15 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
         }
         changeTokensDialog.show();
 
-        RxUtils.networkScheduler.createWorker().schedule(new Action0() {
+        AndroidRxUtils.networkScheduler.scheduleDirect(new Runnable() {
             @Override
-            public void call() {
+            public void run() {
                 changeToken(verifier);
             }
         });
     }
 
+    @NonNull
     protected abstract ImmutablePair<String, String> getTempTokens();
 
     protected abstract void setTempTokens(@Nullable String tokenPublic, @Nullable String tokenSecret);
@@ -307,6 +326,9 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
 
     // get resources from derived class
 
+    protected abstract String getCreateAccountUrl();
+
+    @NonNull
     protected abstract String getAuthTitle();
 
     private String getAuthAgain() {
@@ -334,8 +356,7 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
      *            The error response of the token request
      * @return String with a more detailed error message (user-facing, localized), can be empty
      */
-    @SuppressWarnings("static-method")
-    protected String getExtendedErrorMsg(final HttpResponse response) {
+    protected String getExtendedErrorMsg(final Response response) {
         return StringUtils.EMPTY;
     }
 
@@ -353,6 +374,10 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
 
     private String getAuthAuthorize() {
         return res.getString(R.string.auth_authorize, getAuthTitle());
+    }
+
+    protected String getAuthRegister() {
+        return res.getString(R.string.auth_register, getAuthTitle());
     }
 
     public static class OAuthParameters {
@@ -396,5 +421,12 @@ public abstract class OAuthAuthorizationActivity extends AbstractActivity {
             }
         }
 
+    }
+
+    @Override
+    public void finish() {
+        Dialogs.dismiss(requestTokenDialog);
+        Dialogs.dismiss(changeTokensDialog);
+        super.finish();
     }
 }

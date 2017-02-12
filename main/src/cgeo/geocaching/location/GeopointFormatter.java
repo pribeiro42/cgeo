@@ -1,11 +1,18 @@
 package cgeo.geocaching.location;
 
+import cgeo.geocaching.utils.Formatter;
+
 import java.util.Locale;
 
 /**
  * Formatting of Geopoint.
  */
 public class GeopointFormatter {
+
+    private GeopointFormatter() {
+        // utility class
+    }
+
     /**
      * Predefined formats.
      */
@@ -41,7 +48,10 @@ public class GeopointFormatter {
         LON_DECMINUTE,
 
         /** Example: "W 5 12,345" */
-        LON_DECMINUTE_RAW
+        LON_DECMINUTE_RAW,
+
+        /** Example: "32U E 549996 N 5600860" */
+        UTM
     }
 
     /**
@@ -66,19 +76,21 @@ public class GeopointFormatter {
 
             case LAT_LON_DECMINUTE: {
                 final Geopoint rgp = gp.roundedAt(60 * 1000);
-                return String.format(Locale.getDefault(), "%c %02d° %06.3f · %c %03d° %06.3f",
-                        rgp.getLatDir(), rgp.getLatDeg(), rgp.getLatMinRaw(), rgp.getLonDir(), rgp.getLonDeg(), rgp.getLonMinRaw());
+                return String.format(Locale.getDefault(), "%c %02d° %06.3f" + Formatter.SEPARATOR + "%c %03d° %06.3f",
+                        rgp.getLatDir(), rgp.getLatDeg(), rgp.getLatMinRaw(),
+                        rgp.getLonDir(), rgp.getLonDeg(), rgp.getLonMinRaw());
             }
 
             case LAT_LON_DECMINUTE_RAW: {
                 final Geopoint rgp = gp.roundedAt(60 * 1000);
                 return String.format((Locale) null, "%c %02d° %06.3f %c %03d° %06.3f",
-                        rgp.getLatDir(), rgp.getLatDeg(), rgp.getLatMinRaw(), rgp.getLonDir(), rgp.getLonDeg(), rgp.getLonMinRaw());
+                        rgp.getLatDir(), rgp.getLatDeg(), rgp.getLatMinRaw(),
+                        rgp.getLonDir(), rgp.getLonDeg(), rgp.getLonMinRaw());
             }
 
             case LAT_LON_DECSECOND: {
                 final Geopoint rgp = gp.roundedAt(3600 * 1000);
-                return String.format(Locale.getDefault(), "%c %02d° %02d' %06.3f\" · %c %03d° %02d' %06.3f\"",
+                return String.format(Locale.getDefault(), "%c %02d° %02d' %06.3f\"" + Formatter.SEPARATOR + "%c %03d° %02d' %06.3f\"",
                         rgp.getLatDir(), rgp.getLatDeg(), rgp.getLatMin(), rgp.getLatSecRaw(),
                         rgp.getLonDir(), rgp.getLonDeg(), rgp.getLonMin(), rgp.getLonSecRaw());
             }
@@ -109,8 +121,20 @@ public class GeopointFormatter {
                 return String.format(Locale.getDefault(), "%c %03d %06.3f", rgp.getLonDir(), rgp.getLonDeg(), rgp.getLonMinRaw());
             }
 
+            case UTM: {
+                return UTMPoint.latLong2UTM(gp).toString();
+            }
+
         }
         throw new IllegalStateException(); // cannot happen, if switch case is enum complete
+    }
+
+    /**
+     * Reformats coordinates for Clipboard.
+     * It removes the middle dot if present.
+     */
+    public static CharSequence reformatForClipboard(final CharSequence coordinatesToCopy) {
+        return coordinatesToCopy.toString().replace(Formatter.SEPARATOR, " ");
     }
 
 }

@@ -16,7 +16,6 @@
     </item>
     <item
         android:id="@+id/menu_sort"
-        android:actionProviderClass="cgeo.geocaching.sorting.SortActionProvider"
         android:icon="@drawable/ic_menu_sort_alphabetically"
         android:showAsAction="always"
         android:title="@string/caches_sort"
@@ -47,6 +46,11 @@
         app:showAsAction="ifRoom|withText">
     </item>
     <item
+        android:id="@+id/menu_copy_to_list"
+        android:title="@string/cache_menu_copy_list"
+        app:showAsAction="ifRoom|withText">
+    </item>
+    <item
         android:id="@+id/menu_drop_caches"
         android:icon="@drawable/ic_menu_delete"
         android:title="@string/caches_remove_all"
@@ -61,7 +65,6 @@
     </item>
     <item
         android:id="@+id/menu_cache_list_app_provider"
-        android:actionProviderClass="cgeo.geocaching.apps.cachelist.ListNavigationSelectionActionProvider"
         android:icon="@drawable/ic_menu_goto"
         android:title="@string/caches_on_map"
         android:visible="false"
@@ -117,6 +120,10 @@
                 android:id="@+id/menu_export_fieldnotes"
                 android:title="@string/export_fieldnotes">
             </item>
+            <item
+                android:id="@+id/menu_export_persnotes"
+                android:title="@string/export_persnotes">
+            </item>
         </menu>
     </item>
     <item
@@ -137,5 +144,11 @@
         android:visible="false"
         app:showAsAction="never|withText">
     </item>
-
+    <item
+        android:id="@+id/menu_make_list_unique"
+        android:title="@string/caches_make_list_unique"
+        android:visible="false"
+        app:showAsAction="never|withText">
+    </item>
+    
 </menu>

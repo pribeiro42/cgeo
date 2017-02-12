@@ -2,14 +2,14 @@ package cgeo.geocaching.connector.capability;
 
 import cgeo.geocaching.SearchResult;
 import cgeo.geocaching.connector.IConnector;
-import cgeo.geocaching.utils.CancellableHandler;
+import cgeo.geocaching.utils.DisposableHandler;
 
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.Nullable;
 
 /**
  * connector capability of searching online for a cache by geocode
  *
  */
 public interface ISearchByGeocode extends IConnector {
-    public SearchResult searchByGeocode(final @Nullable String geocode, final @Nullable String guid, final CancellableHandler handler);
+    SearchResult searchByGeocode(@Nullable final String geocode, @Nullable final String guid, final DisposableHandler handler);
 }

@@ -5,7 +5,8 @@ import cgeo.geocaching.activity.OAuthAuthorizationActivity;
 import cgeo.geocaching.settings.Settings;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 public class TwitterAuthorizationActivity extends OAuthAuthorizationActivity {
 
@@ -20,6 +21,12 @@ public class TwitterAuthorizationActivity extends OAuthAuthorizationActivity {
             "callback://www.cgeo.org/twitter/");
 
     @Override
+    protected String getCreateAccountUrl() {
+        return "https://twitter.com/signup";
+    }
+
+    @Override
+    @NonNull
     protected final ImmutablePair<String, String> getTempTokens() {
         return Settings.getTempToken();
     }
@@ -35,6 +42,7 @@ public class TwitterAuthorizationActivity extends OAuthAuthorizationActivity {
     }
 
     @Override
+    @NonNull
     protected final String getAuthTitle() {
         return res.getString(R.string.auth_twitter);
     }

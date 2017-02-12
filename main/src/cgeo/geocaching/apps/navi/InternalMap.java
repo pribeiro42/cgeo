@@ -1,20 +1,28 @@
 package cgeo.geocaching.apps.navi;
 
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
-import cgeo.geocaching.Waypoint;
 import cgeo.geocaching.enumerations.WaypointType;
 import cgeo.geocaching.location.Geopoint;
-import cgeo.geocaching.maps.CGeoMap;
-
-import org.eclipse.jdt.annotation.NonNull;
+import cgeo.geocaching.maps.DefaultMap;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Waypoint;
+import cgeo.geocaching.settings.Settings;
 
 import android.app.Activity;
+import android.support.annotation.NonNull;
 
 class InternalMap extends AbstractPointNavigationApp {
 
+    private final Class<?> cls;
+
+    InternalMap(final Class<?> cls, final int name) {
+        super(getString(name), null);
+        this.cls = cls;
+    }
+
     InternalMap() {
         super(getString(R.string.cache_menu_map), null);
+        cls = null;
     }
 
     @Override
@@ -23,18 +31,18 @@ class InternalMap extends AbstractPointNavigationApp {
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Geopoint coords) {
-        CGeoMap.startActivityCoords(activity, coords, WaypointType.WAYPOINT, null);
+    public void navigate(@NonNull final Activity activity, @NonNull final Geopoint coords) {
+        DefaultMap.startActivityCoords(activity, cls != null ? cls : Settings.getMapProvider().getMapClass(), coords, WaypointType.WAYPOINT, null);
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Waypoint waypoint) {
-        CGeoMap.startActivityCoords(activity, waypoint.getCoords(), waypoint.getWaypointType(), waypoint.getName());
+    public void navigate(@NonNull final Activity activity, @NonNull final Waypoint waypoint) {
+        DefaultMap.startActivityCoords(activity, cls != null ? cls : Settings.getMapProvider().getMapClass(), waypoint.getCoords(), waypoint.getWaypointType(), waypoint.getName());
     }
 
     @Override
-    public void navigate(final @NonNull Activity activity, final @NonNull Geocache cache) {
-        CGeoMap.startActivityGeoCode(activity, cache.getGeocode());
+    public void navigate(@NonNull final Activity activity, @NonNull final Geocache cache) {
+        DefaultMap.startActivityGeoCode(activity, cls != null ? cls : Settings.getMapProvider().getMapClass(), cache.getGeocode());
     }
 
 }

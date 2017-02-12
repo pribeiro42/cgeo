@@ -1,9 +1,7 @@
 package cgeo.geocaching.apps.navi;
 
 import cgeo.geocaching.CgeoApplication;
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
-import cgeo.geocaching.Waypoint;
 import cgeo.geocaching.activity.ActivityMixin;
 import cgeo.geocaching.apps.App;
 import cgeo.geocaching.apps.cache.WhereYouGoApp;
@@ -11,17 +9,21 @@ import cgeo.geocaching.apps.navi.GoogleNavigationApp.GoogleNavigationBikeApp;
 import cgeo.geocaching.apps.navi.GoogleNavigationApp.GoogleNavigationDrivingApp;
 import cgeo.geocaching.apps.navi.GoogleNavigationApp.GoogleNavigationTransitApp;
 import cgeo.geocaching.apps.navi.GoogleNavigationApp.GoogleNavigationWalkingApp;
+import cgeo.geocaching.apps.navi.OruxMapsApp.OruxOfflineMapApp;
+import cgeo.geocaching.apps.navi.OruxMapsApp.OruxOnlineMapApp;
 import cgeo.geocaching.apps.navi.SygicNavigationApp.SygicNavigationDrivingApp;
 import cgeo.geocaching.apps.navi.SygicNavigationApp.SygicNavigationWalkingApp;
 import cgeo.geocaching.location.Geopoint;
+import cgeo.geocaching.maps.mapsforge.v6.NewMap;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Waypoint;
 import cgeo.geocaching.settings.Settings;
-
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.view.MenuItem;
 import android.widget.ArrayAdapter;
 
@@ -41,6 +43,8 @@ public final class NavigationAppFactory {
         RADAR(new RadarApp(), 1, R.string.pref_navigation_menu_radar),
         /** The selected map */
         INTERNAL_MAP(new InternalMap(), 2, R.string.pref_navigation_menu_internal_map),
+        /** The new internal map */
+        INTERNAL_MAP_NEW(new InternalMap(NewMap.class, R.string.cache_menu_mfbeta), 25, R.string.pref_navigation_menu_internal_new_map),
         /** The internal static map activity, when stored */
         STATIC_MAP(new StaticMapApp(), 3, R.string.pref_navigation_menu_static_map),
         /** The internal static map activity, when not yet stored */
@@ -56,13 +60,17 @@ public final class NavigationAppFactory {
         /** Google Streetview */
         GOOGLE_STREETVIEW(new StreetviewApp(), 8, R.string.pref_navigation_menu_google_streetview),
         /** The external OruxMaps app */
-        ORUX_MAPS(new OruxMapsApp(), 9, R.string.pref_navigation_menu_oruxmaps),
+        ORUX_MAPS(new OruxOnlineMapApp(), 9, R.string.pref_navigation_menu_oruxmaps),
+        /** The external OruxMaps app */
+        ORUX_MAPS_OFFLINE(new OruxOfflineMapApp(), 24, R.string.pref_navigation_menu_oruxmaps_offline),
         /** The external navigon app */
         NAVIGON(new NavigonApp(), 10, R.string.pref_navigation_menu_navigon),
         /** The external Sygic app in walking mode */
         SYGIC_WALKING(new SygicNavigationWalkingApp(), 11, R.string.pref_navigation_menu_sygic_walking),
-        /** The external Sygic app in walking mode */
+        /** The external Sygic app in driving mode */
         SYGIC_DRIVING(new SygicNavigationDrivingApp(), 23, R.string.pref_navigation_menu_sygic_driving),
+        /** The external OsmAnd app */
+        OSM_AND(new OsmAndApp(), 26, R.string.pref_navigation_menu_osmand),
         /** Google Navigation in walking mode */
         GOOGLE_NAVIGATION_WALK(new GoogleNavigationWalkingApp(), 12, R.string.pref_navigation_menu_google_walk),
         /** Google Navigation in bike mode */
@@ -115,8 +123,8 @@ public final class NavigationAppFactory {
      * Default way to handle selection of navigation tool.<br />
      * A dialog is created for tool selection and the selected tool is started afterwards.
      * <p />
-     * Delegates to {@link #showNavigationMenu(Activity, cgeo.geocaching.Geocache, cgeo.geocaching.Waypoint, Geopoint, boolean, boolean)} with
-     * <code>showInternalMap = true</code> and <code>showDefaultNavigation = false</code>
+     * Delegates to {@link #showNavigationMenu(Activity, Geocache, Waypoint, Geopoint, boolean, boolean)} with
+     * {@code showInternalMap = true} and {@code showDefaultNavigation = false}
      *
      */
     public static void showNavigationMenu(final Activity activity,
@@ -129,17 +137,17 @@ public final class NavigationAppFactory {
      * A dialog is created for tool selection and the selected tool is started afterwards.
      *
      * @param cache
-     *            may be <code>null</code>
+     *            may be {@code null}
      * @param waypoint
-     *            may be <code>null</code>
+     *            may be {@code null}
      * @param destination
-     *            may be <code>null</code>
+     *            may be {@code null}
      * @param showInternalMap
-     *            should be <code>false</code> only when called from within the internal map
+     *            should be {@code false} only when called from within the internal map
      * @param showDefaultNavigation
-     *            should be <code>false</code> by default
+     *            should be {@code false} by default
      *
-     * @see #showNavigationMenu(Activity, cgeo.geocaching.Geocache, cgeo.geocaching.Waypoint, Geopoint)
+     * @see #showNavigationMenu(Activity, Geocache, Waypoint, Geopoint)
      */
     public static void showNavigationMenu(final Activity activity,
             final Geocache cache, final Waypoint waypoint, final Geopoint destination,
@@ -247,21 +255,27 @@ public final class NavigationAppFactory {
     private static void navigateCache(final Activity activity, final Geocache cache, @Nullable final App app) {
         if (app instanceof CacheNavigationApp) {
             final CacheNavigationApp cacheApp = (CacheNavigationApp) app;
-            cacheApp.navigate(activity, cache);
+            if (cache.getCoords() != null) {
+                cacheApp.navigate(activity, cache);
+            }
         }
     }
 
     private static void navigateWaypoint(final Activity activity, final Waypoint waypoint, @Nullable final App app) {
         if (app instanceof WaypointNavigationApp) {
             final WaypointNavigationApp waypointApp = (WaypointNavigationApp) app;
-            waypointApp.navigate(activity, waypoint);
+            if (waypoint.getCoords() != null) {
+                waypointApp.navigate(activity, waypoint);
+            }
         }
     }
 
     private static void navigateGeopoint(final Activity activity, final Geopoint destination, final App app) {
         if (app instanceof GeopointNavigationApp) {
             final GeopointNavigationApp geopointApp = (GeopointNavigationApp) app;
-            geopointApp.navigate(activity, destination);
+            if (destination != null) {
+                geopointApp.navigate(activity, destination);
+            }
         }
     }
 
@@ -326,7 +340,7 @@ public final class NavigationAppFactory {
     /**
      * Returns the default navigation tool if correctly set and installed or the compass app as default fallback
      *
-     * @return never <code>null</code>
+     * @return never {@code null}
      */
     @NonNull
     public static App getDefaultNavigationApplication() {
@@ -339,6 +353,14 @@ public final class NavigationAppFactory {
 
         for (final NavigationAppsEnum navigationApp : installedNavigationApps) {
             if (navigationApp.id == navigationAppId) {
+                // redirect navigation tools between old and new map on the fly.
+                // if the global checkbox and the selected tools don't match, then offline maps may not work due to different theme versions
+                if (navigationApp == NavigationAppsEnum.INTERNAL_MAP && Settings.useNewMapAsDefault()) {
+                    return NavigationAppsEnum.INTERNAL_MAP_NEW.app;
+                }
+                if (navigationApp == NavigationAppsEnum.INTERNAL_MAP_NEW && !Settings.useNewMapAsDefault()) {
+                    return NavigationAppsEnum.INTERNAL_MAP.app;
+                }
                 return navigationApp.app;
             }
         }
@@ -349,11 +371,9 @@ public final class NavigationAppFactory {
     private static void invokeNavigation(final Activity activity, final Geocache cache, final Waypoint waypoint, final Geopoint destination, final App app) {
         if (cache != null) {
             navigateCache(activity, cache, app);
-        }
-        else if (waypoint != null) {
+        } else if (waypoint != null) {
             navigateWaypoint(activity, waypoint, app);
-        }
-        else {
+        } else {
             navigateGeopoint(activity, destination, app);
         }
     }

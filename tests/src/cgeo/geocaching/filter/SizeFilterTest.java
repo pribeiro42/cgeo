@@ -1,14 +1,15 @@
 package cgeo.geocaching.filter;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import cgeo.CGeoTestCase;
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.enumerations.CacheSize;
+import junit.framework.TestCase;
 
 import java.util.ArrayList;
 
-public class SizeFilterTest extends CGeoTestCase {
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.enumerations.CacheSize;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+public class SizeFilterTest extends TestCase {
 
     private Geocache micro;
     private Geocache regular;
@@ -39,7 +40,7 @@ public class SizeFilterTest extends CGeoTestCase {
     }
 
     public void testFilter() {
-        final ArrayList<Geocache> list = new ArrayList<Geocache>();
+        final ArrayList<Geocache> list = new ArrayList<>();
         list.add(regular);
         list.add(micro);
         assertThat(list).hasSize(2);

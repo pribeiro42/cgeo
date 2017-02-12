@@ -70,7 +70,24 @@
             android:textColor="?text_color"
             android:textIsSelectable="true"
             android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            tools:text="version string is determined by the gradle build"/>
+
+        <TextView
+            android:id="@+id/about_special_build"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="left"
+            android:layout_marginBottom="5dip"
+            android:layout_marginLeft="10dip"
+            android:layout_marginRight="10dip"
+            android:textColor="?text_color"
+            android:textIsSelectable="true"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="additional text in case of deprecated eclipse build"
+            tools:visibility="visible"/>
 
         <RelativeLayout style="@style/separator_horizontal_layout" >
 
@@ -94,7 +111,6 @@
                 style="@style/button_full"
                 android:layout_width="280dip"
                 android:lines="2"
-                android:singleLine="false"
                 android:text="@string/about_donation_more" />
         </LinearLayout>
     </LinearLayout>

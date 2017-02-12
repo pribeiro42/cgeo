@@ -2,8 +2,16 @@ package cgeo.geocaching.playservices;
 
 import cgeo.geocaching.sensors.GeoData;
 import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.utils.AndroidRxUtils;
 import cgeo.geocaching.utils.Log;
-import cgeo.geocaching.utils.RxUtils;
+
+import android.content.Context;
+import android.location.Location;
+import android.os.Bundle;
+import android.support.annotation.NonNull;
+
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -11,22 +19,14 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
-
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.functions.Func1;
-import rx.observers.Subscribers;
-import rx.subjects.ReplaySubject;
-import rx.subscriptions.Subscriptions;
-
-import android.content.Context;
-import android.location.Location;
-import android.os.Bundle;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.disposables.Disposables;
+import io.reactivex.functions.Predicate;
+import io.reactivex.observers.DisposableObserver;
+import io.reactivex.subjects.ReplaySubject;
 
 public class LocationProvider extends LocationCallback implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
@@ -49,33 +49,55 @@ public class LocationProvider extends LocationCallback implements GoogleApiClien
 
     private synchronized void updateRequest() {
         if (locationClient.isConnected()) {
-            if (mostPreciseCount.get() > 0) {
-                Log.d("LocationProvider: requesting most precise locations");
-                LocationServices.FusedLocationApi.requestLocationUpdates(locationClient, LOCATION_REQUEST, this, RxUtils.looperCallbacksLooper);
-            } else if (lowPowerCount.get() > 0) {
-                Log.d("LocationProvider: requesting low-power locations");
-                LocationServices.FusedLocationApi.requestLocationUpdates(locationClient, LOCATION_REQUEST_LOW_POWER, this, RxUtils.looperCallbacksLooper);
-            } else {
-                Log.d("LocationProvider: stopping location requests");
-                LocationServices.FusedLocationApi.removeLocationUpdates(locationClient, this);
+            try {
+                if (mostPreciseCount.get() > 0) {
+                    Log.d("LocationProvider: requesting most precise locations");
+                    LocationServices.FusedLocationApi.requestLocationUpdates(locationClient, LOCATION_REQUEST, this, AndroidRxUtils.looperCallbacksLooper);
+                } else if (lowPowerCount.get() > 0) {
+                    Log.d("LocationProvider: requesting low-power locations");
+                    LocationServices.FusedLocationApi.requestLocationUpdates(locationClient, LOCATION_REQUEST_LOW_POWER, this, AndroidRxUtils.looperCallbacksLooper);
+                } else {
+                    Log.d("LocationProvider: stopping location requests");
+                    LocationServices.FusedLocationApi.removeLocationUpdates(locationClient, this);
+                }
+            } catch (final SecurityException e) {
+                Log.w("Security exception when accessing fused location services", e);
             }
         }
     }
 
     private static Observable<GeoData> get(final Context context, final AtomicInteger reference) {
         final LocationProvider instance = getInstance(context);
-        return Observable.create(new OnSubscribe<GeoData>() {
+
+        return Observable.create(new ObservableOnSubscribe<GeoData>() {
             @Override
-            public void call(final Subscriber<? super GeoData> subscriber) {
+            public void subscribe(final ObservableEmitter<GeoData> emitter) throws Exception {
                 if (reference.incrementAndGet() == 1) {
                     instance.updateRequest();
                 }
-                subscriber.add(Subscriptions.create(new Action0() {
+                final Disposable disposable = subject.subscribeWith(new DisposableObserver<GeoData>() {
                     @Override
-                    public void call() {
-                        RxUtils.looperCallbacksWorker.schedule(new Action0() {
+                    public void onNext(final GeoData value) {
+                        emitter.onNext(value);
+                    }
+
+                    @Override
+                    public void onError(final Throwable e) {
+                        emitter.onError(e);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        emitter.onComplete();
+                    }
+                });
+                emitter.setDisposable(Disposables.fromRunnable(new Runnable() {
+                    @Override
+                    public void run() {
+                        disposable.dispose();
+                        AndroidRxUtils.looperCallbacksScheduler.scheduleDirect(new Runnable() {
                             @Override
-                            public void call() {
+                            public void run() {
                                 if (reference.decrementAndGet() == 0) {
                                     instance.updateRequest();
                                 }
@@ -83,13 +105,12 @@ public class LocationProvider extends LocationCallback implements GoogleApiClien
                         }, 2500, TimeUnit.MILLISECONDS);
                     }
                 }));
-                subscriber.add(subject.subscribe(Subscribers.from(subscriber)));
             }
         });
     }
 
     public static Observable<GeoData> getMostPrecise(final Context context) {
-        return get(context, mostPreciseCount).onBackpressureDrop();
+        return get(context, mostPreciseCount);
     }
 
     public static Observable<GeoData> getLowPower(final Context context) {
@@ -103,9 +124,9 @@ public class LocationProvider extends LocationCallback implements GoogleApiClien
         // no less precise than 20 meters.
         final Observable<GeoData> untilPreciseEnoughObservable =
                 lowPowerObservable.mergeWith(highPowerObservable.delaySubscription(6, TimeUnit.SECONDS))
-                        .takeUntil(new Func1<GeoData, Boolean>() {
+                        .takeUntil(new Predicate<GeoData>() {
                             @Override
-                            public Boolean call(final GeoData geoData) {
+                            public boolean test(final GeoData geoData) {
                                 return geoData.getAccuracy() <= 20;
                             }
                         });
@@ -113,7 +134,7 @@ public class LocationProvider extends LocationCallback implements GoogleApiClien
         // After sending the last known location, try to get a precise location then use the low-power mode. If no
         // location information is given for 25 seconds (if the network location is turned off for example), get
         // back to the precise location and try again.
-        return subject.first().concatWith(untilPreciseEnoughObservable.concatWith(lowPowerObservable).timeout(25, TimeUnit.SECONDS).retry()).onBackpressureDrop();
+        return subject.take(1).concatWith(untilPreciseEnoughObservable.concatWith(lowPowerObservable).timeout(25, TimeUnit.SECONDS).retry());
     }
 
     /**
@@ -141,7 +162,7 @@ public class LocationProvider extends LocationCallback implements GoogleApiClien
     }
 
     @Override
-    public void onConnectionFailed(final ConnectionResult connectionResult) {
+    public void onConnectionFailed(@NonNull final ConnectionResult connectionResult) {
         Log.e("cannot connect to Google Play location service: " + connectionResult);
         subject.onError(new RuntimeException("Connection failed: " + connectionResult));
     }

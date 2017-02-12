@@ -1,11 +1,14 @@
 package cgeo.geocaching.maps.interfaces;
 
+import android.support.annotation.NonNull;
+
 public interface MapSource {
-    public String getName();
+    String getName();
 
-    public boolean isAvailable();
+    boolean isAvailable();
 
-    public int getNumericalId();
+    int getNumericalId();
 
-    public MapProvider getMapProvider();
+    @NonNull
+    MapProvider getMapProvider();
 }

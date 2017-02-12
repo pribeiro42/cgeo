@@ -1,16 +1,11 @@
 package cgeo.geocaching.files;
 
-import cgeo.geocaching.Geocache;
-import cgeo.geocaching.R;
-import cgeo.geocaching.network.Network;
-import cgeo.geocaching.utils.CancellableHandler;
-import cgeo.geocaching.utils.Log;
-
-import org.eclipse.jdt.annotation.Nullable;
-
 import android.content.ContentResolver;
 import android.net.Uri;
 import android.os.Handler;
+import android.support.annotation.Nullable;
+
+import org.apache.commons.compress.utils.IOUtils;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -18,11 +13,17 @@ import java.io.InputStream;
 import java.util.Collection;
 import java.util.Collections;
 
+import cgeo.geocaching.R;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.network.Network;
+import cgeo.geocaching.utils.DisposableHandler;
+import cgeo.geocaching.utils.Log;
+
 public class ImportGpxAttachmentThread extends AbstractImportGpxThread {
     private final Uri uri;
     private final ContentResolver contentResolver;
 
-    public ImportGpxAttachmentThread(final Uri uri, final ContentResolver contentResolver, final int listId, final Handler importStepHandler, final CancellableHandler progressHandler) {
+    public ImportGpxAttachmentThread(final Uri uri, final ContentResolver contentResolver, final int listId, final Handler importStepHandler, final DisposableHandler progressHandler) {
         super(listId, importStepHandler, progressHandler);
         this.uri = uri;
         this.contentResolver = contentResolver;
@@ -39,11 +40,11 @@ public class ImportGpxAttachmentThread extends AbstractImportGpxThread {
         if (streamSize == 0) {
             streamSize = -1;
         }
-        importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_READ_FILE, R.string.gpx_import_loading_caches, streamSize));
+        importStepHandler.sendMessage(importStepHandler.obtainMessage(GPXImporter.IMPORT_STEP_READ_FILE, R.string.gpx_import_loading_caches_with_filename, streamSize, getSourceDisplayName()));
         try {
             return parser.parse(inputStream, progressHandler);
         } finally {
-            inputStream.close();
+            IOUtils.closeQuietly(inputStream);
         }
     }
 
@@ -52,7 +53,7 @@ public class ImportGpxAttachmentThread extends AbstractImportGpxThread {
         try {
             return contentResolver.openInputStream(uri);
         } catch (final FileNotFoundException e) {
-            // for http links, we may need to download the content ourself, if it has no mime type announced by the browser
+            // for http links, we may need to download the content ourselves, if it has no mime type announced by the browser
             if (uri.toString().startsWith("http")) {
                 return Network.getResponseStream(Network.getRequest(uri.toString()));
             }
@@ -60,5 +61,10 @@ public class ImportGpxAttachmentThread extends AbstractImportGpxThread {
             Log.e("GPX import cannot resolve " + uri);
         }
         return null;
+    }
+
+    @Override
+    protected String getSourceDisplayName() {
+        return uri.getLastPathSegment();
     }
 }

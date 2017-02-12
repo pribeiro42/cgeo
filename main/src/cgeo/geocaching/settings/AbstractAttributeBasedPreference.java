@@ -1,6 +1,6 @@
 package cgeo.geocaching.settings;
 
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.Nullable;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -41,7 +41,7 @@ public abstract class AbstractAttributeBasedPreference extends Preference {
 
     /**
      * Evaluate the attributes which where requested in {@link AbstractAttributeBasedPreference#getAttributeNames()}.
-     * 
+     *
      */
     protected abstract void processAttributeValues(TypedArray values);
 

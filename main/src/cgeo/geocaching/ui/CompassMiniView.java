@@ -5,7 +5,7 @@ import cgeo.geocaching.location.Geopoint;
 import cgeo.geocaching.settings.Settings;
 import cgeo.geocaching.utils.AngleUtils;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -16,7 +16,7 @@ import android.graphics.PaintFlagsDrawFilter;
 import android.util.AttributeSet;
 import android.view.View;
 
-final public class CompassMiniView extends View {
+public final class CompassMiniView extends View {
     private Geopoint targetCoords = null;
     private float azimuth = 0;
     private float heading = 0;
@@ -60,6 +60,7 @@ final public class CompassMiniView extends View {
 
     @Override
     public void onAttachedToWindow() {
+        super.onAttachedToWindow();
         if (instances++ == 0) {
             final int drawable = isInEditMode() || !Settings.isLightSkin() ? R.drawable.compass_arrow_mini_white : R.drawable.compass_arrow_mini_black;
             compassArrow = BitmapFactory.decodeResource(getResources(), drawable);
@@ -116,7 +117,7 @@ final public class CompassMiniView extends View {
         final int marginLeft = (getWidth() - compassArrowWidth) / 2;
         final int marginTop = (getHeight() - compassArrowHeight) / 2;
 
-        invalidate(marginLeft, marginTop, (marginLeft + compassArrowWidth), (marginTop + compassArrowHeight));
+        invalidate(marginLeft, marginTop, marginLeft + compassArrowWidth, marginTop + compassArrowHeight);
     }
 
     @Override

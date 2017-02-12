@@ -11,12 +11,19 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical" >
+
         <Button android:id="@+id/copy"
-            android:layout_width="wrap_content"
+            android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:text="@string/copy_to_clipboard"
-            android:layout_gravity="center_horizontal"
             android:padding="12dp" />
+
+        <Button android:id="@+id/share"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/about_system_info_send_button"
+            android:padding="12dp" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -40,7 +47,8 @@
             android:textColor="?text_color"
             android:textColorLink="?text_color_link"
             android:textIsSelectable="true"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            tools:text="long list of system properties"/>
     </LinearLayout>
 
 </ScrollView>

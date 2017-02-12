@@ -1,19 +1,20 @@
 package cgeo.geocaching.location;
 
-import cgeo.geocaching.ICoordinates;
+import cgeo.geocaching.models.ICoordinates;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 public final class Viewport {
 
-    public final @NonNull Geopoint center;
-    public final @NonNull Geopoint bottomLeft;
-    public final @NonNull Geopoint topRight;
+    @NonNull public final Geopoint center;
+    @NonNull public final Geopoint bottomLeft;
+    @NonNull public final Geopoint topRight;
 
-    public Viewport(final @NonNull ICoordinates point1, final @NonNull ICoordinates point2) {
+    public Viewport(@NonNull final ICoordinates point1, @NonNull final ICoordinates point2) {
         final Geopoint gp1 = point1.getCoords();
         final Geopoint gp2 = point2.getCoords();
         this.bottomLeft = new Geopoint(Math.min(gp1.getLatitude(), gp2.getLatitude()),
@@ -24,7 +25,7 @@ public final class Viewport {
                 (gp1.getLongitude() + gp2.getLongitude()) / 2);
     }
 
-    public Viewport(final @NonNull ICoordinates center, final double latSpan, final double lonSpan) {
+    public Viewport(@NonNull final ICoordinates center, final double latSpan, final double lonSpan) {
         this.center = center.getCoords();
         final double centerLat = this.center.getLatitude();
         final double centerLon = this.center.getLongitude();
@@ -50,8 +51,8 @@ public final class Viewport {
         return topRight.getLongitude();
     }
 
-    public @NonNull
-    Geopoint getCenter() {
+    @NonNull
+    public Geopoint getCenter() {
         return center;
     }
 
@@ -70,7 +71,7 @@ public final class Viewport {
      *            the coordinates to check
      * @return true if the point is contained in this viewport, false otherwise or if the point contains no coordinates
      */
-    public boolean contains(final @NonNull ICoordinates point) {
+    public boolean contains(@NonNull final ICoordinates point) {
         final Geopoint coords = point.getCoords();
         return coords != null
                 && coords.getLongitudeE6() >= bottomLeft.getLongitudeE6()
@@ -85,7 +86,7 @@ public final class Viewport {
      * @param points a collection of (possibly null) points
      * @return the number of non-null points in the viewport
      */
-    public int count(final @NonNull Collection<? extends ICoordinates> points) {
+    public int count(@NonNull final Collection<? extends ICoordinates> points) {
         int total = 0;
         for (final ICoordinates point: points) {
             if (point != null && contains(point)) {
@@ -93,6 +94,23 @@ public final class Viewport {
             }
         }
         return total;
+    }
+
+    /**
+     * Filter return the points present in the viewport.
+     *
+     * @param points
+     *            a collection of (possibly null) points
+     * @return a new collection containing the points in the viewport
+     */
+    public <T extends ICoordinates> Collection<T> filter(@NonNull final Collection<T> points) {
+        final Collection<T> result = new ArrayList<>();
+        for (final T point : points) {
+            if (point != null && contains(point)) {
+                result.add(point);
+            }
+        }
+        return result;
     }
 
     @Override
@@ -107,7 +125,7 @@ public final class Viewport {
      *            the other viewport
      * @return true if the viewport is fully included into this one, false otherwise
      */
-    public boolean includes(final @NonNull Viewport vp) {
+    public boolean includes(@NonNull final Viewport vp) {
         return contains(vp.bottomLeft) && contains(vp.topRight);
     }
 
@@ -134,8 +152,8 @@ public final class Viewport {
      *            multiplicative factor for the latitude and longitude span (> 1 to widen, < 1 to shrink)
      * @return a widened or shrunk viewport
      */
-    public @NonNull
-    Viewport resize(final double factor) {
+    @NonNull
+    public Viewport resize(final double factor) {
         return new Viewport(getCenter(), getLatitudeSpan() * factor, getLongitudeSpan() * factor);
     }
 
@@ -146,8 +164,8 @@ public final class Viewport {
      *            a set of points. Point with null coordinates (or null themselves) will be ignored
      * @return the smallest viewport containing the non-null coordinates, or null if no coordinates are non-null
      */
-    static public @Nullable
-    Viewport containing(final Collection<? extends ICoordinates> points) {
+    @Nullable
+    public static Viewport containing(final Collection<? extends ICoordinates> points) {
         boolean valid = false;
         double latMin = Double.MAX_VALUE;
         double latMax = -Double.MAX_VALUE;

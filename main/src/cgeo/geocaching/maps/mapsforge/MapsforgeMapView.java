@@ -16,14 +16,14 @@ import cgeo.geocaching.settings.Settings;
 import cgeo.geocaching.utils.Log;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.mapsforge.android.maps.MapView;
-import org.mapsforge.android.maps.Projection;
-import org.mapsforge.android.maps.mapgenerator.MapGenerator;
-import org.mapsforge.android.maps.mapgenerator.MapGeneratorFactory;
-import org.mapsforge.android.maps.mapgenerator.MapGeneratorInternal;
-import org.mapsforge.android.maps.overlay.Overlay;
-import org.mapsforge.core.GeoPoint;
+import android.support.annotation.NonNull;
+import org.mapsforge.v3.android.maps.MapView;
+import org.mapsforge.v3.android.maps.Projection;
+import org.mapsforge.v3.android.maps.mapgenerator.MapGenerator;
+import org.mapsforge.v3.android.maps.mapgenerator.MapGeneratorFactory;
+import org.mapsforge.v3.android.maps.mapgenerator.MapGeneratorInternal;
+import org.mapsforge.v3.android.maps.overlay.Overlay;
+import org.mapsforge.v3.core.GeoPoint;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -205,7 +205,7 @@ public class MapsforgeMapView extends MapView implements MapViewImpl {
             if (!new File(Settings.getMapFile()).exists()) {
                 Toast.makeText(
                         getContext(),
-                        getContext().getResources().getString(R.string.warn_nonexistant_mapfile),
+                        getContext().getString(R.string.warn_nonexistant_mapfile),
                         Toast.LENGTH_LONG)
                         .show();
                 return;
@@ -214,7 +214,7 @@ public class MapsforgeMapView extends MapView implements MapViewImpl {
             if (!Settings.isValidMapFile(Settings.getMapFile())) {
                 Toast.makeText(
                         getContext(),
-                        getContext().getResources().getString(R.string.warn_invalid_mapfile),
+                        getContext().getString(R.string.warn_invalid_mapfile),
                         Toast.LENGTH_LONG)
                         .show();
             }
@@ -238,7 +238,7 @@ public class MapsforgeMapView extends MapView implements MapViewImpl {
             } catch (final FileNotFoundException ignored) {
                 Toast.makeText(
                         getContext(),
-                        getContext().getResources().getString(R.string.warn_rendertheme_missing),
+                        getContext().getString(R.string.warn_rendertheme_missing),
                         Toast.LENGTH_LONG)
                         .show();
             }
@@ -250,7 +250,7 @@ public class MapsforgeMapView extends MapView implements MapViewImpl {
     @Override
     public void repaintRequired(final GeneralOverlay overlay) {
 
-        if (null == overlay) {
+        if (overlay == null) {
             invalidate();
         } else {
             try {

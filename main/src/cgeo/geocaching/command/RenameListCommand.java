@@ -1,11 +1,11 @@
 package cgeo.geocaching.command;
 
-import cgeo.geocaching.DataStore;
 import cgeo.geocaching.R;
 import cgeo.geocaching.list.StoredList;
+import cgeo.geocaching.storage.DataStore;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import android.app.Activity;
 
@@ -14,7 +14,7 @@ public abstract class RenameListCommand extends AbstractCommand {
     private final int listId;
     private String oldName;
 
-    public RenameListCommand(final @NonNull Activity context, final int listId) {
+    public RenameListCommand(@NonNull final Activity context, final int listId) {
         super(context);
         this.listId = listId;
     }

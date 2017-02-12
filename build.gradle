@@ -1,27 +1,181 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
+/*
+ * Just run this script using "gradlew", and it will show you typical examples of how to use it.
+ */
+ 
+defaultTasks 'cgeoHelp'
+
+task cgeoHelp {
+	doLast {
+		println ''
+		println 'These are some of the available commands for building cgeo.'
+		println ''
+		println 'cleaning all generated artifacts:'
+		println '    gradlew clean'
+		println ''
+		println 'build:'
+		println '    gradlew assembleDebug'
+		println ''
+		println 'install on connected device/emulator:'
+		println '    gradlew installBasicDebug'
+		println ''
+		println 'run app on connected device/emulator:'
+		println '    gradlew runBasicDebug'
+		println ''
+		println 'instrumentation tests on connected device/emulator:'
+		println '    gradlew connectedBasicDebugAndroidTest'
+		println ''
+		println 'pure unit tests WITHOUT device'
+		println '    gradlew testBasicDebugUnitTest'
+		println ''
+		println 'all unit tests (pure and instrumentation)'
+		println '    gradlew testDebug'
+		println ''
+		println 'check project dependencies for updates:'
+		println '    gradlew dependencies main:dependencies'
+		println ''
+		println 'check gradle dependencies for updates:'
+		println '    gradlew dependencyUpdates'
+		println ''
+		println 'Use "gradlew tasks" for more available tasks.'
+		println ''
+		println ''
+		println 'Available build types are: debug, nightly (requires an env var named NB),' +
+				'rc (requires an env var named RC), release.'
+	}
+}
+
+configure(cgeoHelp) {
+    group = 'cgeo'
+    description = 'Displays help for building cgeo.'
+}
+
+/*
+ * Build scan plugin shall be applied first
+ */
+apply plugin: 'com.gradle.build-scan'
+/*
+ * update check for all components in this gradle script
+ */
+apply plugin: 'com.github.ben-manes.versions'
+apply plugin: 'idea'
 
 buildscript {
     repositories {
-        mavenCentral()
+        jcenter()
+		// gradle build-scan
+		maven {
+			url 'https://plugins.gradle.org/m2'
+		}
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:1.1.0'
-        // the latest version of the android-apt plugin
-        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.1'
-        //gradle-properties
-       // classpath 'net.saliman:gradle-properties-plugin:1.2.0'
-    }
+		// these dependencies are used by gradle plugins, not by our projects
+		
+		// check for updates of gradle plugin dependencies
+		classpath 'com.github.ben-manes:gradle-versions-plugin:0.14.0'
+	
+		// Android gradle plugin
+        classpath 'com.android.tools.build:gradle:2.2.3'
+    
+		// Android annotation processor
+        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.8'
+
+		// un-mocking of portable Android classes
+		classpath 'de.mobilej.unmock:UnMockPlugin:0.6.0'
+
+		// Google Services (App Invite) has its own Gradle plugin
+		classpath 'com.google.gms:google-services:2.1.0'
+
+		// monitor our application method limit
+		classpath 'com.getkeepsafe.dexcount:dexcount-gradle-plugin:0.6.2'
+
+		// ribbonizer for easier distinction of non-release builds
+		classpath 'com.github.gfx.ribbonizer:plugin:1.0.0'
+
+		classpath 'com.gradle:build-scan-plugin:1.4'
+	}
 }
 
+// filter out non release version updates and other updates we cannot use
 allprojects {
-    //apply plugin: 'properties'
+	configurations {
+		all {
+			resolutionStrategy {
+				componentSelection {
+					all { ComponentSelection selection ->
+						boolean rejected = ['alpha', 'beta', 'rc', 'cr', 'm'].any { qualifier ->
+							selection.candidate.version ==~ /(?i).*[.-]${qualifier}[.\d-]*/
+						}
+						// allow beta version of androidsvg
+						if (selection.candidate.group == 'com.caverock') {
+							rejected = false
+						}
+						// google auto service only available as rc2 right now
+						if (selection.candidate.group == 'com.google.auto.service') {
+							rejected = false
+						}
+						if (rejected) {
+							selection.reject('Release candidate')
+						}
 
-    repositories {
-        mavenCentral()
-    }
-    //ant.properties : java.compilerargs=-Xlint
-    tasks.withType(JavaCompile) {
-        options.compilerArgs << "-Xlint"
-    }
+						// https://github.com/joel-costigliola/assertj-core/issues/345
+						if (selection.candidate.group == 'org.assertj' && selection.candidate.module == 'assertj-core' && selection.candidate.version.substring(0,1).toInteger() > 1) {
+							selection.reject("assertj 2.x or higher require Java 7 SE classes not available in Android")
+						}
+						// findbugs team has some release trouble
+						if (selection.candidate.group == 'com.google.code.findbugs' && selection.candidate.module == 'annotations' && selection.candidate.version == '3.0.1') {
+							selection.reject("3.0.1 is not an upgrade of 3.0.1u2")
+						}
+					}
+				}
+			}
+		}
+	}
+
+	repositories {
+		mavenCentral()
+		jcenter()
+		// hosts e.g. viewpagerindicator
+		maven {
+			url "https://jitpack.io"
+		}
+		// viewpager fork
+		maven {
+			url 'https://dl.bintray.com/alexeydanilov/maven'
+		}
+	}
 }
 
+
+buildScan {
+	licenseAgreementUrl = 'https://gradle.com/terms-of-service'
+	licenseAgree = 'yes'
+}
+
+
+/*
+ * common configuration for the Java projects
+ */
+
+ext.buildToolsVersion = "23.0.3"
+ext.minSdkVersion = 14
+
+subprojects {
+    repositories {
+		mavenCentral()
+		jcenter()
+		// hosts e.g. viewpagerindicator
+		maven {
+			url "https://jitpack.io"
+		}
+    }
+
+    // disable warning of annotation processor about annotation types with no registered processor (like @NonNull)
+    tasks.withType(JavaCompile) {
+        options.compilerArgs << "-Xlint:-processing"
+    }
+
+    idea.module {
+        downloadJavadoc = true
+        downloadSources = true
+    }
+}

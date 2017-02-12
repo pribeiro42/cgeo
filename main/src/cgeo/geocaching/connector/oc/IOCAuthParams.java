@@ -1,6 +1,8 @@
 package cgeo.geocaching.connector.oc;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.StringRes;
+
+import android.support.annotation.NonNull;
 
 public interface IOCAuthParams {
 
@@ -15,18 +17,21 @@ public interface IOCAuthParams {
      * ResId of the Consumer key
      *
      */
+    @StringRes
     int getCKResId();
 
     /**
      * ResId of the Consumer secret
      *
      */
+    @StringRes
     int getCSResId();
 
     /**
      * ResId of the Authorization title
      *
      */
+    @StringRes
     int getAuthTitleResId();
 
     /**

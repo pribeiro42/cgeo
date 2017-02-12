@@ -1,6 +1,6 @@
 package cgeo.geocaching.maps.interfaces;
 
-import cgeo.geocaching.IWaypoint;
+import cgeo.geocaching.models.IWaypoint;
 
 /**
  * Covers the common functions of the provider-specific
@@ -8,7 +8,7 @@ import cgeo.geocaching.IWaypoint;
  */
 public interface CachesOverlayItemImpl extends OverlayItemImpl {
 
-    public IWaypoint getCoord();
+    IWaypoint getCoord();
 
-    public boolean applyDistanceRule();
+    boolean applyDistanceRule();
 }

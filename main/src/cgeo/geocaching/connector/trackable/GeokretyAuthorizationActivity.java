@@ -5,10 +5,9 @@ import cgeo.geocaching.activity.TokenAuthorizationActivity;
 import cgeo.geocaching.network.Network;
 import cgeo.geocaching.settings.Settings;
 
-import ch.boye.httpclientandroidlib.HttpResponse;
-
+import okhttp3.Response;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.Nullable;
 
 import java.util.regex.Pattern;
 
@@ -18,10 +17,14 @@ public class GeokretyAuthorizationActivity extends TokenAuthorizationActivity {
     private static final Pattern PATTERN_TOKEN = Pattern.compile("([\\w]+)");
 
     public static final TokenAuthParameters GEOKRETY_TOKEN_AUTH_PARAMS = new TokenAuthParameters(
-            "http://geokrety.org/api-login2secid.php",
-            "http://geokrety.org/adduser.php",
+            GeokretyConnector.URL + "/api-login2secid.php",
             "login",
             "password");
+
+    @Override
+    protected String getCreateAccountUrl() {
+        return GeokretyConnector.getCreateAccountUrl();
+    }
 
     @Override
     protected void setToken(final String token) {
@@ -54,13 +57,13 @@ public class GeokretyAuthorizationActivity extends TokenAuthorizationActivity {
     }
 
     @Override
-    protected String getExtendedErrorMsg(final HttpResponse response) {
+    protected String getExtendedErrorMsg(final Response response) {
         final String line = Network.getResponseData(response);
         return getExtendedErrorMsg(line);
     }
 
     @Override
-    protected String getExtendedErrorMsg(final @Nullable String response) {
+    protected String getExtendedErrorMsg(@Nullable final String response) {
         if (StringUtils.equals(response, "1")) {
             return res.getString(R.string.err_auth_geokrety_bad_password);
         }

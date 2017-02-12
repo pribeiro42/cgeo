@@ -9,36 +9,37 @@ import cgeo.geocaching.network.HtmlImage;
 import cgeo.geocaching.network.Network;
 import cgeo.geocaching.network.Parameters;
 import cgeo.geocaching.settings.Credentials;
+import cgeo.geocaching.settings.DiskCookieStore;
 import cgeo.geocaching.settings.Settings;
 import cgeo.geocaching.utils.Log;
 import cgeo.geocaching.utils.MatcherWrapper;
-import cgeo.geocaching.utils.RxUtils;
 import cgeo.geocaching.utils.TextUtils;
 
-import ch.boye.httpclientandroidlib.HttpResponse;
-
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-
-import rx.Observable;
-import rx.functions.Action0;
-
 import android.graphics.drawable.Drawable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
-import java.util.regex.Matcher;
+
+import io.reactivex.Observable;
+import io.reactivex.Single;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import okhttp3.Response;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
 public class GCLogin extends AbstractLogin {
 
-    private final static String ENGLISH = "<a href=\"#\">English</a>";
+    private static final String ENGLISH = "<a href=\"#\">English</a>";
 
-    private static final String LANGUAGE_CHANGE_URI = "http://www.geocaching.com/my/souvenirs.aspx";
+    private static final String LANGUAGE_CHANGE_URI = "https://www.geocaching.com/my/souvenirs.aspx";
 
     private GCLogin() {
         // singleton
@@ -60,107 +61,119 @@ public class GCLogin extends AbstractLogin {
     @Override
     @NonNull
     protected StatusCode login(final boolean retry) {
-        final Credentials credentials = Settings.getGcCredentials();
+        return login(retry, Settings.getCredentials(GCConnector.getInstance()));
+    }
 
+    @Override
+    @NonNull
+    protected StatusCode login(final boolean retry, @NonNull final Credentials credentials) {
         if (credentials.isInvalid()) {
             clearLoginInfo();
-            Log.e("Login.login: No login information stored");
+            Log.w("Login.login: No login information stored");
             return resetGcCustomDate(StatusCode.NO_LOGIN_INFO_STORED);
         }
 
-        final String username = credentials.getUsername();
+        final String username = credentials.getUserName();
         final String password = credentials.getPassword();
 
         setActualStatus(CgeoApplication.getInstance().getString(R.string.init_login_popup_working));
-        final HttpResponse tryLoggedInResponse = Network.getRequest("https://www.geocaching.com/login/default.aspx");
-        final String tryLoggedInData = Network.getResponseData(tryLoggedInResponse);
-        if (tryLoggedInResponse != null && tryLoggedInResponse.getStatusLine().getStatusCode() == 503 && TextUtils.matches(tryLoggedInData, GCConstants.PATTERN_MAINTENANCE)) {
-            return StatusCode.MAINTENANCE;
-        }
-
-        if (StringUtils.isBlank(tryLoggedInData)) {
-            Log.e("Login.login: Failed to retrieve login page (1st)");
-            return StatusCode.CONNECTION_FAILED; // no login page
-        }
-
-        if (getLoginStatus(tryLoggedInData)) {
-            Log.i("Already logged in Geocaching.com as " + username + " (" + Settings.getGCMemberStatus() + ')');
-            if (switchToEnglish(tryLoggedInData) && retry) {
-                return login(false);
+        try {
+            final Response tryLoggedInResponse = Network.getRequest("https://www.geocaching.com/login/default.aspx").blockingGet();
+            final String tryLoggedInData = Network.getResponseData(tryLoggedInResponse);
+            if (tryLoggedInResponse.code() == 503 && TextUtils.matches(tryLoggedInData, GCConstants.PATTERN_MAINTENANCE)) {
+                return StatusCode.MAINTENANCE;
             }
-            setHomeLocation();
-            refreshMemberStatus();
-            detectGcCustomDate();
-            return StatusCode.NO_ERROR; // logged in
-        }
 
-        Cookies.clearCookies();
-        Settings.setCookieStore(null);
-
-        final Parameters params = new Parameters(
-                "__EVENTTARGET", "",
-                "__EVENTARGUMENT", "",
-                "ctl00$ContentBody$tbUsername", username,
-                "ctl00$ContentBody$tbPassword", password,
-                "ctl00$ContentBody$cbRememberMe", "on",
-                "ctl00$ContentBody$btnSignIn", "Login");
-        final String[] viewstates = getViewstates(tryLoggedInData);
-        if (isEmpty(viewstates)) {
-            Log.e("Login.login: Failed to find viewstates");
-            return StatusCode.LOGIN_PARSE_ERROR; // no viewstates
-        }
-        putViewstates(params, viewstates);
-
-        final HttpResponse loginResponse = Network.postRequest("https://www.geocaching.com/login/default.aspx", params);
-        final String loginData = Network.getResponseData(loginResponse);
-
-        if (StringUtils.isBlank(loginData)) {
-            Log.e("Login.login: Failed to retrieve login page (2nd)");
-            // FIXME: should it be CONNECTION_FAILED to match the first attempt?
-            return StatusCode.COMMUNICATION_ERROR; // no login page
-        }
-        assert loginData != null;  // Caught above
-
-        if (getLoginStatus(loginData)) {
-            if (switchToEnglish(loginData) && retry) {
-                return login(false);
+            if (StringUtils.isBlank(tryLoggedInData)) {
+                Log.e("Login.login: Failed to retrieve login page (1st)");
+                return StatusCode.CONNECTION_FAILED; // no login page
             }
-            Log.i("Successfully logged in Geocaching.com as " + username + " (" + Settings.getGCMemberStatus() + ')');
-            Settings.setCookieStore(Cookies.dumpCookieStore());
-            setHomeLocation();
-            refreshMemberStatus();
-            detectGcCustomDate();
-            return StatusCode.NO_ERROR; // logged in
-        }
 
-        if (loginData.contains("your username or password is incorrect")) {
-            Log.i("Failed to log in Geocaching.com as " + username + " because of wrong username/password");
-            return resetGcCustomDate(StatusCode.WRONG_LOGIN_DATA); // wrong login
-        }
+            if (getLoginStatus(tryLoggedInData)) {
+                Log.i("Already logged in Geocaching.com as " + username + " (" + Settings.getGCMemberStatus() + ')');
+                if (switchToEnglish(tryLoggedInData) && retry) {
+                    return login(false, credentials);
+                }
+                setHomeLocation();
+                refreshMemberStatus();
+                detectGcCustomDate();
+                return StatusCode.NO_ERROR; // logged in
+            }
 
-        if (loginData.contains("You must validate your account before you can log in.")) {
-            Log.i("Failed to log in Geocaching.com as " + username + " because account needs to be validated first");
-            return resetGcCustomDate(StatusCode.UNVALIDATED_ACCOUNT);
-        }
+            Cookies.clearCookies();
+            DiskCookieStore.setCookieStore(null);
 
-        Log.i("Failed to log in Geocaching.com as " + username + " for some unknown reason");
-        if (retry) {
-            switchToEnglish(loginData);
-            return login(false);
-        }
+            final String[] viewstates = getViewstates(tryLoggedInData);
+            if (isEmpty(viewstates)) {
+                Log.e("Login.login: Failed to find viewstates");
+                return StatusCode.LOGIN_PARSE_ERROR; // no viewstates
+            }
 
-        return resetGcCustomDate(StatusCode.UNKNOWN_ERROR); // can't login
+            final Parameters params = new Parameters(
+                    "__EVENTTARGET", "",
+                    "__EVENTARGUMENT", "",
+                    "ctl00$ContentBody$tbUsername", username,
+                    "ctl00$ContentBody$tbPassword", password,
+                    "ctl00$ContentBody$cbRememberMe", "on",
+                    "ctl00$ContentBody$btnSignIn", "Login");
+            putViewstates(params, viewstates);
+
+            final String loginData = Network.getResponseData(Network.postRequest("https://www.geocaching.com/login/default.aspx", params));
+
+            if (StringUtils.isBlank(loginData)) {
+                Log.e("Login.login: Failed to retrieve login page (2nd)");
+                // FIXME: should it be CONNECTION_FAILED to match the first attempt?
+                return StatusCode.COMMUNICATION_ERROR; // no login page
+            }
+            assert loginData != null;  // Caught above
+
+            if (getLoginStatus(loginData)) {
+                if (switchToEnglish(loginData) && retry) {
+                    return login(false, credentials);
+                }
+                Log.i("Successfully logged in Geocaching.com as " + username + " (" + Settings.getGCMemberStatus() + ')');
+                DiskCookieStore.setCookieStore(Cookies.dumpCookieStore());
+                setHomeLocation();
+                refreshMemberStatus();
+                detectGcCustomDate();
+                return StatusCode.NO_ERROR; // logged in
+            }
+
+            if (loginData.contains("your username or password is incorrect")) {
+                Log.i("Failed to log in Geocaching.com as " + username + " because of wrong username/password");
+                return resetGcCustomDate(StatusCode.WRONG_LOGIN_DATA); // wrong login
+            }
+
+            if (loginData.contains("You must validate your account before you can log in.")) {
+                Log.i("Failed to log in Geocaching.com as " + username + " because account needs to be validated first");
+                return resetGcCustomDate(StatusCode.UNVALIDATED_ACCOUNT);
+            }
+
+            Log.i("Failed to log in Geocaching.com as " + username + " for some unknown reason");
+            if (retry) {
+                switchToEnglish(loginData);
+                return login(false, credentials);
+            }
+
+            return resetGcCustomDate(StatusCode.UNKNOWN_ERROR); // can't login
+        } catch (final Exception ignored) {
+            Log.e("Login.login: communication error");
+            return StatusCode.CONNECTION_FAILED;
+        }
     }
 
     public StatusCode logout() {
-        final HttpResponse logoutResponse = Network.getRequest("https://www.geocaching.com/login/default.aspx?RESET=Y&redir=http%3a%2f%2fwww.geocaching.com%2fdefault.aspx%3f");
-        final String logoutData = Network.getResponseData(logoutResponse);
-        if (logoutResponse != null && logoutResponse.getStatusLine().getStatusCode() == 503 && TextUtils.matches(logoutData, GCConstants.PATTERN_MAINTENANCE)) {
-            return StatusCode.MAINTENANCE;
+        try {
+            final Response logoutResponse = Network.getRequest("https://www.geocaching.com/login/default.aspx?RESET=Y&redir=http%3a%2f%2fwww.geocaching.com%2fdefault.aspx%3f")
+                    .blockingGet();
+            final String logoutData = Network.getResponseData(logoutResponse);
+            if (logoutResponse.code() == 503 && TextUtils.matches(logoutData, GCConstants.PATTERN_MAINTENANCE)) {
+                return StatusCode.MAINTENANCE;
+            }
+        } catch (final Exception ignored) {
         }
 
         resetLoginStatus();
-
         return StatusCode.NO_ERROR;
     }
 
@@ -203,7 +216,7 @@ public class GCLogin extends AbstractLogin {
         // login page
         setActualLoginStatus(TextUtils.matches(page, GCConstants.PATTERN_LOGIN_NAME_LOGIN_PAGE));
         if (isActualLoginStatus()) {
-            setActualUserName(Settings.getUsername());
+            setActualUserName(Settings.getUserName());
             // number of caches found is not part of this page
             return true;
         }
@@ -215,104 +228,154 @@ public class GCLogin extends AbstractLogin {
     /**
      * Ensure that the web site is in English.
      *
-     * @param previousPage the content of the last loaded page
-     * @return {@code true} if a switch was necessary and succesfully performed (non-English -> English)
+     * @param previousPage
+     *            the content of the last loaded page
+     * @return {@code true} if a switch was necessary and successfully performed (non-English -> English)
      */
     private boolean switchToEnglish(final String previousPage) {
         if (previousPage != null && previousPage.contains(ENGLISH)) {
             Log.i("Geocaching.com language already set to English");
             // get find count
-            getLoginStatus(Network.getResponseData(Network.getRequest("http://www.geocaching.com/email/")));
+            getLoginStatus(Network.getResponseData(Network.getRequest("https://www.geocaching.com/email/")));
         } else {
             final String page = Network.getResponseData(Network.getRequest(LANGUAGE_CHANGE_URI));
             getLoginStatus(page);
             if (page == null) {
                 Log.e("Failed to read viewstates to set geocaching.com language");
             }
-            final Parameters params = new Parameters(
-                    "__EVENTTARGET", "ctl00$uxLocaleList$uxLocaleList$ctl00$uxLocaleItem", // switch to english
-                    "__EVENTARGUMENT", "");
+            final String paramEnglish = TextUtils.getMatch(page, GCConstants.PATTERN_ENGLISH_SELECTION, null);
+            if (paramEnglish == null) {
+                Log.e("Failed to find English language selector");
+            }
+            // switch to English
+            final Parameters params = new Parameters("__EVENTTARGET", paramEnglish, "__EVENTARGUMENT", "");
             transferViewstates(page, params);
-            final HttpResponse response = Network.postRequest(LANGUAGE_CHANGE_URI, params, new Parameters("Referer", LANGUAGE_CHANGE_URI));
-            if (Network.isSuccess(response)) {
+            try {
+                Network.completeWithSuccess(Network.postRequest(LANGUAGE_CHANGE_URI, params, new Parameters("Referer", LANGUAGE_CHANGE_URI)));
                 Log.i("changed language on geocaching.com to English");
                 return true;
+            } catch (final Exception ignored) {
+                Log.e("Failed to set geocaching.com language to English");
             }
-            Log.e("Failed to set geocaching.com language to English");
         }
         return false;
     }
 
-    public Observable<Drawable> downloadAvatar() {
+    /**
+     * Retrieve avatar url from GC
+     *
+     * @return the avatar url
+     */
+    public String getAvatarUrl() {
         try {
-            final String responseData = StringUtils.defaultString(Network.getResponseData(Network.getRequest("http://www.geocaching.com/my/")));
+            final String responseData = StringUtils.defaultString(Network.getResponseData(Network.getRequest("https://www.geocaching.com/my/")));
             final String profile = TextUtils.replaceWhitespace(responseData);
 
             setActualCachesFound(Integer.parseInt(removeDotAndComma(TextUtils.getMatch(profile, GCConstants.PATTERN_CACHES_FOUND, true, "-1"))));
 
             final String avatarURL = TextUtils.getMatch(profile, GCConstants.PATTERN_AVATAR_IMAGE_PROFILE_PAGE, false, null);
             if (avatarURL != null) {
-                final HtmlImage imgGetter = new HtmlImage(HtmlImage.SHARED, false, 0, false);
-                return imgGetter.fetchDrawable(avatarURL.replace("avatar", "user/large")).cast(Drawable.class);
+                return avatarURL.replace("avatar", "user/large");
             }
             // No match? There may be no avatar set by user.
             Log.d("No avatar set for user");
+        } catch (final Exception e) {
+            Log.w("Error when retrieving user avatar url", e);
+        }
+        return StringUtils.EMPTY;
+    }
+
+    /**
+     * Download the avatar
+     *
+     * @return the avatar drawable
+     */
+    public Observable<Drawable> downloadAvatar() {
+        try {
+            final String avatarURL = getAvatarUrl();
+            if (!avatarURL.isEmpty()) {
+                final HtmlImage imgGetter = new HtmlImage(HtmlImage.SHARED, false, false, false);
+                return imgGetter.fetchDrawable(avatarURL).cast(Drawable.class);
+            }
         } catch (final Exception e) {
             Log.w("Error when retrieving user avatar", e);
         }
         return null;
     }
 
-    @Nullable
-    static String retrieveHomeLocation() {
-        final String result = Network.getResponseData(Network.getRequest("https://www.geocaching.com/account/settings/homelocation"));
-        return TextUtils.getMatch(result, GCConstants.PATTERN_HOME_LOCATION, null);
+    /**
+     * Retrieve the home location
+     *
+     * @return a Single containing the home location, or IOException
+     */
+    static Single<String> retrieveHomeLocation() {
+        return Network.getResponseDocument(Network.getRequest("https://www.geocaching.com/account/settings/homelocation"))
+                .map(new Function<Document, String>() {
+                    @Override
+                    public String apply(final Document document) {
+                        return document.select("input.search-coordinates").attr("value");
+                    }
+                });
     }
 
     private static void setHomeLocation() {
-        RxUtils.networkScheduler.createWorker().schedule(new Action0() {
+        retrieveHomeLocation().subscribe(new Consumer<String>() {
             @Override
-            public void call() {
-                final String homeLocationStr = retrieveHomeLocation();
+            public void accept(final String homeLocationStr) throws Exception {
                 if (StringUtils.isNotBlank(homeLocationStr) && !StringUtils.equals(homeLocationStr, Settings.getHomeLocation())) {
                     assert homeLocationStr != null;
                     Log.i("Setting home location to " + homeLocationStr);
                     Settings.setHomeLocation(homeLocationStr);
                 }
             }
+        }, new Consumer<Throwable>() {
+            @Override
+            public void accept(final Throwable throwable) throws Exception {
+                Log.w("Unable to retrieve the home location");
+            }
         });
     }
 
     private static void refreshMemberStatus() {
-        RxUtils.networkScheduler.createWorker().schedule(new Action0() {
-            @Override
-            public void call() {
-                final String page = StringUtils.defaultString(Network.getResponseData(Network.getRequest("https://www.geocaching.com/account/settings/membership")));
-                final Matcher match = GCConstants.PATTERN_MEMBERSHIP.matcher(page);
-                if (match.find()) {
-                    Log.d("Setting member status to " + match.group(1));
-                    Settings.setGCMemberStatus(match.group(1));
-                } else {
-                    Log.w("Cannot determine member status");
-                }
-            }
-        });
+        Network.getResponseDocument(Network.getRequest("https://www.geocaching.com/account/settings/membership"))
+                .subscribe(new Consumer<Document>() {
+                               @Override
+                               public void accept(final Document document) throws Exception {
+                                   final Element membership = document.select("dl.membership-details > dd:eq(3)").first();
+                                   if (membership != null) {
+                                       final GCMemberState memberState = GCMemberState.fromString(membership.text());
+                                       Log.d("Setting member status to " + memberState);
+                                       Settings.setGCMemberStatus(memberState);
+                                   } else {
+                                       Log.w("Cannot determine member status");
+                                   }
+                               }
+                           },
+                        new Consumer<Throwable>() {
+                            @Override
+                            public void accept(final Throwable throwable) throws Exception {
+                                Log.w("Unable to retrieve member status", throwable);
+                            }
+                        });
     }
 
     /**
      * Detect user date settings on geocaching.com
      */
     private static void detectGcCustomDate() {
-        final String result = Network.getResponseData(Network.getRequest("https://www.geocaching.com/account/settings/preferences"));
-
-        if (null == result) {
-            Log.w("Login.detectGcCustomDate: result is null");
-            return;
-        }
-
-        final String customDate = TextUtils.getMatch(result, GCConstants.PATTERN_CUSTOMDATE, true, null);
-        if (null != customDate) {
-            Settings.setGcCustomDate(customDate);
+        try {
+            final Document document = Network.getResponseDocument(Network.getRequest("https://www.geocaching.com/account/settings/preferences")).blockingGet();
+            final String customDate = document.select("select#SelectedDateFormat option[selected]").attr("value");
+            if (StringUtils.isNotBlank(customDate)) {
+                Log.d("Setting GC custom date to " + customDate);
+                Settings.setGcCustomDate(customDate);
+            } else {
+                Settings.setGcCustomDate(GCConstants.DEFAULT_GC_DATE);
+                Log.w("cannot find custom date format in geocaching.com preferences page, using default");
+            }
+        } catch (final Exception e) {
+            Settings.setGcCustomDate(GCConstants.DEFAULT_GC_DATE);
+            Log.w("cannot set custom date from geocaching.com preferences page, using default", e);
         }
     }
 
@@ -445,20 +508,25 @@ public class GCLogin extends AbstractLogin {
      */
     @Nullable
     String getRequestLogged(@NonNull final String uri, @Nullable final Parameters params) {
-        final HttpResponse response = Network.getRequest(uri, params);
-        final String data = Network.getResponseData(response, canRemoveWhitespace(uri));
+        try {
+            final Response response = Network.getRequest(uri, params).blockingGet();
+            final String data = Network.getResponseData(response, canRemoveWhitespace(uri));
 
-        // A page not found will not be found if the user logs in either
-        if (Network.isPageNotFound(response) || getLoginStatus(data)) {
+            // A page not found will not be found if the user logs in either
+            if (response.code() == 404 || getLoginStatus(data)) {
+                return data;
+            }
+
+            if (login() == StatusCode.NO_ERROR) {
+                return Network.getResponseData(Network.getRequest(uri, params), canRemoveWhitespace(uri));
+            }
+
+            Log.w("Working as guest.");
             return data;
+        } catch (final Exception ignored) {
+            // FIXME: propagate the exception instead
+            return null;
         }
-
-        if (login() == StatusCode.NO_ERROR) {
-            return Network.getResponseData(Network.getRequest(uri, params), canRemoveWhitespace(uri));
-        }
-
-        Log.w("Working as guest.");
-        return data;
     }
 
     /**

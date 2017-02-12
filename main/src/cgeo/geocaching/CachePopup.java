@@ -3,8 +3,7 @@ package cgeo.geocaching;
 import cgeo.geocaching.activity.AbstractActivity;
 import cgeo.geocaching.activity.ActivityMixin;
 
-import org.apache.commons.lang3.StringUtils;
-
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -12,6 +11,8 @@ import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
 import android.view.Window;
+
+import org.apache.commons.lang3.StringUtils;
 
 public class CachePopup extends AbstractActivity {
 
@@ -58,6 +59,14 @@ public class CachePopup extends AbstractActivity {
     public static void startActivity(final Context context, final String geocode) {
         final Intent popupIntent = new Intent(context, CachePopup.class);
         popupIntent.putExtra(Intents.EXTRA_GEOCODE, geocode);
+
         context.startActivity(popupIntent);
+    }
+
+    public static void startActivityAllowTarget(final Activity activity, final String geocode) {
+        final Intent popupIntent = new Intent(activity, CachePopup.class);
+        popupIntent.putExtra(Intents.EXTRA_GEOCODE, geocode);
+
+        activity.startActivityForResult(popupIntent, AbstractDialogFragment.REQUEST_CODE_TARGET_INFO);
     }
 }

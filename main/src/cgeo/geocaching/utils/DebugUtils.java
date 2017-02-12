@@ -2,7 +2,7 @@ package cgeo.geocaching.utils;
 
 import cgeo.geocaching.R;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.content.Context;
 import android.os.Environment;
@@ -20,7 +20,7 @@ public class DebugUtils {
         // utility class
     }
 
-    public static void createMemoryDump(final @NonNull Context context) {
+    public static void createMemoryDump(@NonNull final Context context) {
         try {
             final SimpleDateFormat fileNameDateFormat = new SimpleDateFormat("yyyy-MM-dd_hh-mm", Locale.US);
             final File file = FileUtils.getUniqueNamedFile(new File(Environment.getExternalStorageDirectory(),

@@ -1,12 +1,12 @@
 package cgeo.geocaching.apps.cachelist;
 
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
 import cgeo.geocaching.SearchResult;
 import cgeo.geocaching.apps.AbstractLocusApp;
+import cgeo.geocaching.models.Geocache;
 
 import org.apache.commons.collections4.CollectionUtils;
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -17,7 +17,7 @@ abstract class AbstractLocusCacheListApp extends AbstractLocusApp implements Cac
 
     private final boolean export;
 
-    public AbstractLocusCacheListApp(final boolean export) {
+    AbstractLocusCacheListApp(final boolean export) {
         super(getString(export ? R.string.caches_map_locus_export : R.string.caches_map_locus), Intent.ACTION_VIEW);
         this.export = export;
     }
@@ -28,7 +28,7 @@ abstract class AbstractLocusCacheListApp extends AbstractLocusApp implements Cac
      * @see AbstractLocusApp#showInLocus
      */
     @Override
-    public boolean invoke(final @NonNull List<Geocache> cacheList, final @NonNull Activity activity, final @NonNull SearchResult search) {
+    public boolean invoke(@NonNull final List<Geocache> cacheList, @NonNull final Activity activity, @NonNull final SearchResult search) {
         if (CollectionUtils.isEmpty(cacheList)) {
             return false;
         }

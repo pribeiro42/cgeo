@@ -2,17 +2,17 @@ package cgeo.geocaching;
 
 import cgeo.geocaching.enumerations.CacheListType;
 
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+
+import org.apache.commons.lang3.StringUtils;
 
 public class Intents {
 
-    private Intents() {
-        // Do not instantiate
-    }
+    public static final int SETTINGS_ACTIVITY_REQUEST_CODE = 1;
+    public static final int SEARCH_REQUEST_CODE = 2;
+    public static final int APP_INVITE_REQUEST_CODE = 3;
 
     private static final String PREFIX = "cgeo.geocaching.intent.extra.";
 
@@ -33,6 +33,7 @@ public class Intents {
     public static final String EXTRA_LIST_ID = PREFIX + "list_id";
     public static final String EXTRA_COORD_DESCRIPTION = PREFIX + "coord_description";
     public static final String EXTRA_SCALE = PREFIX + "scale";
+    public static final String EXTRA_WPT_PAGE_UPDATE = PREFIX + "wpt_page_update";
 
     public static final String EXTRA_WPTTYPE = PREFIX + "wpttype";
     public static final String EXTRA_MAPSTATE = PREFIX + "mapstate";
@@ -42,6 +43,7 @@ public class Intents {
 
     public static final String EXTRA_DOWNLOAD = PREFIX + "download";
 
+    public static final String EXTRA_TARGET_INFO = PREFIX + "targetInfo";
     /**
      * list type to be used with the cache list activity. Be aware to use the String representation of the corresponding
      * enum.
@@ -52,7 +54,6 @@ public class Intents {
     public static final String EXTRA_SEARCH = PREFIX + "search";
     public static final String EXTRA_START_DIR = PREFIX + "start_dir";
     public static final String EXTRA_TRACKING_CODE = PREFIX + "tracking_code";
-    public static final String EXTRA_TYPE = PREFIX + "type";
     public static final String EXTRA_USERNAME = PREFIX + "username";
     public static final String EXTRA_WAYPOINT_ID = PREFIX + "waypoint_id";
     public static final String EXTRA_CACHELIST = PREFIX + "cache_list";
@@ -84,15 +85,24 @@ public class Intents {
     public static final String EXTRA_TOKEN_AUTH_USERNAME = PREFIX_TOKEN_AUTH + "username";
     public static final String EXTRA_TOKEN_AUTH_PASSWORD = PREFIX_TOKEN_AUTH + "password";
 
+    private static final String PREFIX_CREDENTIALS_AUTH = "cgeo.geocaching.intent.credentialsauth.";
+    public static final String EXTRA_CREDENTIALS_AUTH_USERNAME = PREFIX_CREDENTIALS_AUTH + "username";
+    public static final String EXTRA_CREDENTIALS_AUTH_PASSWORD = PREFIX_CREDENTIALS_AUTH + "password";
+
     private static final String PREFIX_INTERNAL = "cgeo.geocaching.intent.internal.";
     public static final String INTENT_CACHE_CHANGED = PREFIX_INTERNAL + "cache-changed";
 
-    public static Intent putListType(final Intent intent, final @NonNull CacheListType listType) {
+    private Intents() {
+        // Do not instantiate
+    }
+
+    public static Intent putListType(final Intent intent, @NonNull final CacheListType listType) {
         intent.putExtra(EXTRA_LIST_TYPE, listType.name());
         return intent;
     }
 
-    public static @NonNull CacheListType getListType(final Intent intent) {
+    @NonNull
+    public static CacheListType getListType(final Intent intent) {
         final Bundle extras = intent.getExtras();
         if (extras == null) {
             return CacheListType.OFFLINE;

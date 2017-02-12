@@ -1,6 +1,6 @@
 package cgeo.geocaching.utils;
 
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -15,17 +15,17 @@ public abstract class LazyInitializedList<ElementType> extends AbstractList<Elem
     @NonNull
     public List<ElementType> getUnderlyingList() {
         if (list == null) {
-            synchronized(this) {
+            synchronized (this) {
                 try {
                     list = call();
                     if (list == null) {
-                        Log.e("LazyInitializedList.getList: null result");
+                        Log.w("LazyInitializedList.getList: null result");
                     }
                 } catch (final Exception e) {
-                    Log.e("LazyInitializedList.getList", e);
+                    Log.w("LazyInitializedList.getList", e);
                 }
                 if (list == null) {
-                    Log.e("LazyInitializedList.getList: using an empty list as a fallback");
+                    Log.w("LazyInitializedList.getList: using an empty list as a fallback");
                     list = Collections.emptyList();
                 }
             }

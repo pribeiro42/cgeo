@@ -1,16 +1,16 @@
 package cgeo.geocaching.files;
 
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.enumerations.CacheSize;
 import cgeo.geocaching.enumerations.CacheType;
 import cgeo.geocaching.location.Geopoint;
-import cgeo.geocaching.utils.CancellableHandler;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.utils.DisposableHandler;
+import cgeo.geocaching.utils.Charsets;
 import cgeo.geocaching.utils.Log;
 
-import org.apache.commons.io.Charsets;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -160,7 +160,7 @@ public final class LocParser extends FileParser {
 
     @Override
     @NonNull
-    public Collection<Geocache> parse(@NonNull final InputStream stream, @Nullable final CancellableHandler progressHandler) throws IOException, ParserException {
+    public Collection<Geocache> parse(@NonNull final InputStream stream, @Nullable final DisposableHandler progressHandler) throws IOException, ParserException {
         final int maxSize = stream.available();
         final Map<String, Geocache> coords = parseLoc(stream);
         final List<Geocache> caches = new ArrayList<>();
@@ -173,7 +173,7 @@ public final class LocParser extends FileParser {
 
             fixCache(cache);
             cache.setType(CacheType.UNKNOWN); // type is not given in the LOC file
-            cache.setListId(listId);
+            cache.getLists().add(listId);
             cache.setDetailed(true);
             cache.store();
             if (progressHandler != null) {

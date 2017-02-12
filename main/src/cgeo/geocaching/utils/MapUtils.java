@@ -1,14 +1,14 @@
 package cgeo.geocaching.utils;
 
-import cgeo.geocaching.Geocache;
 import cgeo.geocaching.R;
-import cgeo.geocaching.Waypoint;
 import cgeo.geocaching.compatibility.Compatibility;
 import cgeo.geocaching.enumerations.CacheListType;
-import cgeo.geocaching.enumerations.LogType;
+import cgeo.geocaching.log.LogType;
+import cgeo.geocaching.models.Geocache;
+import cgeo.geocaching.models.Waypoint;
 
 import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.eclipse.jdt.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
@@ -79,10 +79,10 @@ public final class MapUtils {
                 .append(cache.getMapMarkerId())
                 .append(cache.isOwner())
                 .append(cache.isFound())
-                .append(showUserModifiedCoords(cache, cacheListType))
+                .append(showUserModifiedCoords(cache))
                 .append(cache.getPersonalNote())
                 .append(cache.isLogOffline())
-                .append(cache.getListId() > 0)
+                .append(!cache.getLists().isEmpty())
                 .append(cache.getOfflineLogType())
                 .append(showBackground(cacheListType))
                 .append(showFloppyOverlay(cacheListType))
@@ -197,7 +197,7 @@ public final class MapUtils {
             layers.add(Compatibility.getDrawable(res, R.drawable.marker_own));
             insets.add(getOwnInset(cacheListType)[resolution]);
             // if not, checked if stored
-        } else if (cache.getListId() > 0 && showFloppyOverlay(cacheListType)) {
+        } else if (!cache.getLists().isEmpty() && showFloppyOverlay(cacheListType)) {
             layers.add(Compatibility.getDrawable(res, R.drawable.marker_stored));
             insets.add(getOwnInset(cacheListType)[resolution]);
         }
@@ -217,7 +217,7 @@ public final class MapUtils {
             insets.add(getFoundInset(cacheListType)[resolution]);
         }
         // user modified coords
-        if (showUserModifiedCoords(cache, cacheListType)) {
+        if (showUserModifiedCoords(cache)) {
             layers.add(Compatibility.getDrawable(res, R.drawable.marker_usermodifiedcoords));
             insets.add(getUMCInset(cacheListType)[resolution]);
         }
@@ -280,14 +280,12 @@ public final class MapUtils {
      *
      * @param cache
      *            The cache currently used
-     * @param cacheListType
-     *            The cache list currently used
      * @return
      *         True if the UserModifiedCoords flag should be displayed
      */
-    private static boolean showUserModifiedCoords(final Geocache cache, @Nullable final CacheListType cacheListType) {
+    private static boolean showUserModifiedCoords(final Geocache cache) {
 
-        return cache.hasUserModifiedCoords() || cache.hasFinalDefined() && cacheListType != null;
+        return cache.hasUserModifiedCoords() || cache.hasFinalDefined();
     }
 
     /**

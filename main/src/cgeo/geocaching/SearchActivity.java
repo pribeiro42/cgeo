@@ -1,31 +1,5 @@
 package cgeo.geocaching;
 
-import butterknife.ButterKnife;
-import butterknife.Bind;
-
-import cgeo.geocaching.activity.AbstractActionBarActivity;
-import cgeo.geocaching.activity.ShowcaseViewBuilder;
-import cgeo.geocaching.connector.ConnectorFactory;
-import cgeo.geocaching.connector.IConnector;
-import cgeo.geocaching.connector.capability.ISearchByGeocode;
-import cgeo.geocaching.connector.trackable.TrackableBrand;
-import cgeo.geocaching.connector.trackable.TrackableConnector;
-import cgeo.geocaching.location.Geopoint;
-import cgeo.geocaching.location.GeopointFormatter;
-import cgeo.geocaching.search.AutoCompleteAdapter;
-import cgeo.geocaching.sensors.GeoData;
-import cgeo.geocaching.sensors.Sensors;
-import cgeo.geocaching.settings.Settings;
-import cgeo.geocaching.ui.dialog.CoordinatesInputDialog;
-import cgeo.geocaching.ui.dialog.Dialogs;
-import cgeo.geocaching.utils.EditUtils;
-
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-
-import rx.functions.Func1;
-
 import android.app.Activity;
 import android.app.SearchManager;
 import android.content.Intent;
@@ -38,31 +12,57 @@ import android.view.View.OnClickListener;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 
+import org.apache.commons.lang3.StringUtils;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
 import java.util.Locale;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import cgeo.geocaching.activity.AbstractActionBarActivity;
+import cgeo.geocaching.activity.ShowcaseViewBuilder;
+import cgeo.geocaching.address.AddressListActivity;
+import cgeo.geocaching.connector.ConnectorFactory;
+import cgeo.geocaching.connector.IConnector;
+import cgeo.geocaching.connector.capability.ISearchByGeocode;
+import cgeo.geocaching.connector.trackable.TrackableBrand;
+import cgeo.geocaching.connector.trackable.TrackableTrackingCode;
+import cgeo.geocaching.location.Geopoint;
+import cgeo.geocaching.location.GeopointFormatter;
+import cgeo.geocaching.search.AutoCompleteAdapter;
+import cgeo.geocaching.sensors.GeoData;
+import cgeo.geocaching.sensors.Sensors;
+import cgeo.geocaching.settings.Settings;
+import cgeo.geocaching.storage.DataStore;
+import cgeo.geocaching.ui.dialog.CoordinatesInputDialog;
+import cgeo.geocaching.ui.dialog.Dialogs;
+import cgeo.geocaching.utils.EditUtils;
+import cgeo.geocaching.utils.functions.Func1;
 
 public class SearchActivity extends AbstractActionBarActivity implements CoordinatesInputDialog.CoordinateUpdate {
 
-    @Bind(R.id.buttonLatitude) protected Button buttonLatitude;
-    @Bind(R.id.buttonLongitude) protected Button buttonLongitude;
-    @Bind(R.id.search_coordinates) protected Button buttonSearchCoords;
+    @BindView(R.id.buttonLatitude) protected Button buttonLatitude;
+    @BindView(R.id.buttonLongitude) protected Button buttonLongitude;
+    @BindView(R.id.search_coordinates) protected Button buttonSearchCoords;
 
-    @Bind(R.id.address) protected AutoCompleteTextView addressEditText;
-    @Bind(R.id.search_address) protected Button buttonSearchAddress;
+    @BindView(R.id.address) protected AutoCompleteTextView addressEditText;
+    @BindView(R.id.search_address) protected Button buttonSearchAddress;
 
-    @Bind(R.id.geocode) protected AutoCompleteTextView geocodeEditText;
-    @Bind(R.id.display_geocode) protected Button buttonSearchGeocode;
+    @BindView(R.id.geocode) protected AutoCompleteTextView geocodeEditText;
+    @BindView(R.id.display_geocode) protected Button buttonSearchGeocode;
 
-    @Bind(R.id.keyword) protected AutoCompleteTextView keywordEditText;
-    @Bind(R.id.search_keyword) protected Button buttonSearchKeyword;
+    @BindView(R.id.keyword) protected AutoCompleteTextView keywordEditText;
+    @BindView(R.id.search_keyword) protected Button buttonSearchKeyword;
 
-    @Bind(R.id.finder) protected AutoCompleteTextView finderNameEditText;
-    @Bind(R.id.search_finder) protected Button buttonSearchFinder;
+    @BindView(R.id.finder) protected AutoCompleteTextView finderNameEditText;
+    @BindView(R.id.search_finder) protected Button buttonSearchFinder;
 
-    @Bind(R.id.owner) protected AutoCompleteTextView ownerNameEditText;
-    @Bind(R.id.search_owner) protected Button buttonSearchOwner;
+    @BindView(R.id.owner) protected AutoCompleteTextView ownerNameEditText;
+    @BindView(R.id.search_owner) protected Button buttonSearchOwner;
 
-    @Bind(R.id.trackable) protected AutoCompleteTextView trackableEditText;
-    @Bind(R.id.display_trackable) protected Button buttonSearchTrackable;
+    @BindView(R.id.trackable) protected AutoCompleteTextView trackableEditText;
+    @BindView(R.id.display_trackable) protected Button buttonSearchTrackable;
 
     private static final String GOOGLE_NOW_SEARCH_ACTION = "com.google.android.gms.actions.SEARCH_ACTION";
 
@@ -152,20 +152,30 @@ public class SearchActivity extends AbstractActionBarActivity implements Coordin
         }
 
         // Check if the query is a TB code
-        TrackableConnector trackableConnector = ConnectorFactory.getTrackableConnector(geocode);
+        TrackableBrand trackableBrand = ConnectorFactory.getTrackableConnector(geocode).getBrand();
 
         // check if the query contains a TB code
-        if (trackableConnector == ConnectorFactory.UNKNOWN_TRACKABLE_CONNECTOR) {
+        if (trackableBrand == TrackableBrand.UNKNOWN) {
             final String tbCode = ConnectorFactory.getTrackableFromURL(query);
             if (StringUtils.isNotBlank(tbCode)) {
-                trackableConnector = ConnectorFactory.getTrackableConnector(tbCode);
+                trackableBrand = ConnectorFactory.getTrackableConnector(tbCode).getBrand();
                 geocode = tbCode;
             }
         }
 
-        if (trackableConnector != ConnectorFactory.UNKNOWN_TRACKABLE_CONNECTOR && geocode != null) {
+        // check if the query contains a TB tracking code
+        if (trackableBrand == TrackableBrand.UNKNOWN) {
+            final TrackableTrackingCode tbTrackingCode = ConnectorFactory.getTrackableTrackingCodeFromURL(query);
+            if (!tbTrackingCode.isEmpty()) {
+                trackableBrand = tbTrackingCode.brand;
+                geocode = tbTrackingCode.trackingCode;
+            }
+        }
+
+        if (trackableBrand != TrackableBrand.UNKNOWN && geocode != null) {
             final Intent trackablesIntent = new Intent(this, TrackableActivity.class);
             trackablesIntent.putExtra(Intents.EXTRA_GEOCODE, geocode.toUpperCase(Locale.US));
+            trackablesIntent.putExtra(Intents.EXTRA_BRAND, trackableBrand.getId());
             startActivity(trackablesIntent);
             return true;
         }
@@ -281,7 +291,7 @@ public class SearchActivity extends AbstractActionBarActivity implements Coordin
         });
     }
 
-    private static void setSearchAction(final AutoCompleteTextView editText, final Button button, final @NonNull Runnable runnable, final @Nullable Func1<String, String[]> suggestionFunction) {
+    private static void setSearchAction(final AutoCompleteTextView editText, final Button button, @NonNull final Runnable runnable, @Nullable final Func1<String, String[]> suggestionFunction) {
         EditUtils.setActionListener(editText, runnable);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -295,7 +305,7 @@ public class SearchActivity extends AbstractActionBarActivity implements Coordin
     }
 
     private void updateCoordinates() {
-        final CoordinatesInputDialog coordsDialog = CoordinatesInputDialog.getInstance(null, null, Sensors.getInstance().currentGeo());
+        final CoordinatesInputDialog coordsDialog = CoordinatesInputDialog.getInstance(null, null);
         coordsDialog.setCancelable(true);
         coordsDialog.show(getSupportFragmentManager(), "wpedit_dialog");
     }
@@ -348,7 +358,7 @@ public class SearchActivity extends AbstractActionBarActivity implements Coordin
         startActivity(addressesIntent);
     }
 
-    private final void findByFinderFn() {
+    private void findByFinderFn() {
         final String usernameText = StringUtils.trim(finderNameEditText.getText().toString());
 
         if (StringUtils.isBlank(usernameText)) {
@@ -408,7 +418,7 @@ public class SearchActivity extends AbstractActionBarActivity implements Coordin
     @Override
     public final boolean onOptionsItemSelected(final MenuItem item) {
         if (item.getItemId() == R.id.menu_search_own_caches) {
-            findByOwnerFn(Settings.getUsername());
+            findByOwnerFn(Settings.getUserName());
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -419,7 +429,7 @@ public class SearchActivity extends AbstractActionBarActivity implements Coordin
         searchIntent.setAction(Intent.ACTION_SEARCH).
                 putExtra(SearchManager.QUERY, scan).
                 putExtra(Intents.EXTRA_KEYWORD_SEARCH, false);
-        fromActivity.startActivityForResult(searchIntent, MainActivity.SEARCH_REQUEST_CODE);
+        fromActivity.startActivityForResult(searchIntent, Intents.SEARCH_REQUEST_CODE);
     }
 
     @Override

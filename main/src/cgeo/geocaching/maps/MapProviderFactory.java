@@ -10,8 +10,8 @@ import cgeo.geocaching.settings.Settings;
 import cgeo.geocaching.utils.Log;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import android.view.Menu;
 import android.view.SubMenu;
@@ -21,7 +21,7 @@ import java.util.List;
 
 public class MapProviderFactory {
 
-    private final static ArrayList<MapSource> mapSources = new ArrayList<>();
+    private static final ArrayList<MapSource> mapSources = new ArrayList<>();
 
     static {
         // add GoogleMapProvider only if google api is available in order to support x86 android emulator
@@ -29,6 +29,10 @@ public class MapProviderFactory {
             GoogleMapProvider.getInstance();
         }
         MapsforgeMapProvider.getInstance();
+    }
+
+    private MapProviderFactory() {
+        // utility class
     }
 
     public static boolean isGoogleMapsInstalled() {
@@ -57,7 +61,7 @@ public class MapProviderFactory {
     public static boolean isSameActivity(@NonNull final MapSource source1, @NonNull final MapSource source2) {
         final MapProvider provider1 = source1.getMapProvider();
         final MapProvider provider2 = source2.getMapProvider();
-        return provider1 == provider2 && provider1.isSameActivity(source1, source2);
+        return provider1.equals(provider2) && provider1.isSameActivity(source1, source2);
     }
 
     public static void addMapviewMenuItems(final Menu menu) {
